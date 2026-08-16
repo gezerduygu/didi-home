@@ -32,7 +32,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // Philosophy section
     'phil.badge': 'SANATLA YENİDEN RUH KAZANAN YAŞAYAN BİR KOLEKSİYON',
-    'phil.text': 'Didi Home; tüketmek yerine var olanı koruyarak sanatla yeniden ruh kazandırma felsefesiyle doğdu. Ev renovasyonundan seramiğe, özel tasarım kıyafetten dekorasyona kadar hayata geçen tüm orijinal parçalarımız, her gün yenisi eklenen yaşayan bir koleksiyonun parçasıdır.',
+    'phil.text': 'Didi Home; tüketmek yerine var olanı koruyarak sanatla yeniden ruh kazandırma felsefesiyle doğdu. Ev renovasyonundan seramiğe, özel tasarım kıyafetten dekorasyona kadar hayata geçen tüm orijinal tasarımlarımız, her gün yenisi eklenen yaşayan bir koleksiyonun parçasıdır.',
     'phil.more': 'Hikayemiz ve Felsefemiz Hakkında',
 
     // Footer
@@ -139,7 +139,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // Philosophy section
     'phil.badge': 'A LIVING COLLECTION BREATHING SOUL THROUGH ART',
-    'phil.text': 'Didi Home was born from the philosophy of preserving what already exists and breathing new soul into it through art, rather than mere consumption. From home renovation and ceramics to bespoke apparel and decor, all our original pieces form a vibrant, living collection growing every day.',
+    'phil.text': 'Didi Home was born from the philosophy of preserving what already exists and breathing new soul into it through art, rather than mere consumption. From home renovation and ceramics to bespoke fashion and decor, all our original designs form a vibrant, living collection growing every day.',
     'phil.more': 'About Our Story & Philosophy',
 
     // Footer
