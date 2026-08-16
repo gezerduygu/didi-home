@@ -31,9 +31,9 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'cat.home.subtitle': 'Zamansız Ev Aksesuarları',
 
     // Philosophy section
-    'phil.badge': 'SÜRDÜRÜLEBİLİR & DÖNGÜSEL YAŞAM',
-    'phil.text': 'Didi Home olarak her parçadan yalnızca bir adet olmasına özen gösteriyoruz. Satın aldığınız her vintage kıyafet veya el yapımı seramik obje, dünyamızdaki karbon ayak izini azaltmaya katkı sunar ve evinize özel bir kimlik katar.',
-    'phil.more': 'Felsefemiz Hakkında Daha Fazlası',
+    'phil.badge': 'SANATLA YENİDEN RUH KAZANAN YAŞAYAN BİR KOLEKSİYON',
+    'phil.text': 'Didi Home; tüketmek yerine var olanı koruyarak sanatla yeniden ruh kazandırma felsefesiyle doğdu. Ev renovasyonundan seramiğe, özel tasarım kıyafetten dekorasyona kadar hayata geçen tüm orijinal parçalarımız, her gün yenisi eklenen yaşayan bir koleksiyonun parçasıdır.',
+    'phil.more': 'Hikayemiz ve Felsefemiz Hakkında',
 
     // Footer
     'footer.istanbul': 'Didi Home © 2026 · İSTANBUL',
@@ -100,18 +100,19 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'cart.checkout_form.note': 'Sipariş Notu (İsteğe Bağlı)',
 
     // About brand modal
-    'about.story': 'Didi Home Hikayesi',
-    'about.title': 'Yaşayan Alanlar, \n Ruh Taşıyan Nesneler',
-    'about.para1': 'Didi Home, tüketim kültürünün hızına ve tektipleşmeye bir başkaldırı olarak doğdu. Yaşam alanlarımızın sadece dört duvardan ibaret olmadığına, içinde barındırdığı her bir eşyanın ruhumuzu yansıtan birer hikaye anlatıcısı olduğuna inanıyoruz.',
-    'about.para2': 'Bu yüzden, atölyemizde şamot ve stoneware çamurlarını sabırla elle şekillendirerek ürettiğimiz Seramiklerimizi, narin ve kaliteli dokularıyla zamana meydan okuyan ikinci el Houte Couture parçalarımızı ve geçmişin asil patinasını bugüne taşıyan vintage Ev Süslemelerimizi bir araya getirdik.',
-    'about.value1.title': 'EL EMEĞİ',
-    'about.value1.desc': 'Eşsiz Sanatçı Dokunuşları',
-    'about.value2.title': 'DÖNGÜSELLİK',
-    'about.value2.desc': 'Sürdürülebilir İkinci El',
-    'about.value3.title': 'TEKİL HİKAYE',
-    'about.value3.desc': 'Her Objeden Sadece Bir Adet',
-    'about.quote': '"Kusurluluğun içindeki kusursuz bütünlüğü keşfedin." · Wabi-Sabi',
-    'about.explore_space': 'YAŞAM ALANINI KEŞFET',
+    'about.story': 'Hikayemiz & Felsefemiz',
+    'about.title': 'Tasarım Tutkusu & \n Yaşayan Bir Koleksiyon',
+    'about.para1': 'Didi Home, yıllar içinde farklı disiplinlerdeki tasarım tutkusunun ve el emeğinin yansıması olarak ortaya çıktı. Felsefesinin merkezinde tüketmek yerine, var olanı koruyarak sanatla yeniden ruh kazandırmak yatar.',
+    'about.para2': 'Didi Home; ev renovasyonundan kıyafet tasarımına, seramikten dekorasyona kadar bugüne dek hayata geçirdiğim tamamı orijinal parçalardan oluşan ve her gün yenisi eklenen yaşayan bir koleksiyondur.',
+    'about.para3': "Didi Home'a hoş geldiniz.",
+    'about.value1.title': 'ÖZGÜN TASARIM',
+    'about.value1.desc': 'Farklı Disiplinlerin Uyumu',
+    'about.value2.title': 'KORUMA & SANAT',
+    'about.value2.desc': 'Var Olana Yeniden Ruh Kazandırmak',
+    'about.value3.title': 'YAŞAYAN KOLEKSİYON',
+    'about.value3.desc': 'Her Gün Eklenen Orijinal Parçalar',
+    'about.quote': '"Var olanı koruyarak sanatla yeniden ruh kazandırmak." · Didi Home',
+    'about.explore_space': 'KOLEKSİYONU KEŞFET',
 
     // Admin panel toast or common actions
     'admin.added_success': 'başarıyla atölyeye eklendi ve yayına alındı!',
@@ -137,9 +138,9 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'cat.home.subtitle': 'Timeless Home Accessories',
 
     // Philosophy section
-    'phil.badge': 'SUSTAINABLE & CIRCULAR LIVING',
-    'phil.text': 'At Didi Home, we ensure that there is only one piece of each item. Every vintage garment or handcrafted ceramic piece you purchase helps reduce our carbon footprint and brings a unique identity to your home.',
-    'phil.more': 'More About Our Philosophy',
+    'phil.badge': 'A LIVING COLLECTION BREATHING SOUL THROUGH ART',
+    'phil.text': 'Didi Home was born from the philosophy of preserving what already exists and breathing new soul into it through art, rather than mere consumption. From home renovation and ceramics to bespoke apparel and decor, all our original pieces form a vibrant, living collection growing every day.',
+    'phil.more': 'About Our Story & Philosophy',
 
     // Footer
     'footer.istanbul': 'Didi Home © 2026 · ISTANBUL',
@@ -206,18 +207,19 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'cart.checkout_form.note': 'Order Note (Optional)',
 
     // About brand modal
-    'about.story': 'Didi Home Story',
-    'about.title': 'Living Spaces, \n Objects with Soul',
-    'about.para1': 'Didi Home was born as a rebellion against fast consumption and homogenization. We believe that our living spaces are not just four walls, but that every object within them is a storyteller reflecting our soul.',
-    'about.para2': 'Thus, we have brought together our Ceramics patiently hand-shaped from chamotte and stoneware clay in our studio, our second-hand Haute Couture garments that challenge time with delicate, quality textures, and vintage Home Decor bringing the noble patina of the past to the present.',
-    'about.value1.title': 'HANDCRAFTED',
-    'about.value1.desc': 'Unique Artist Touches',
-    'about.value2.title': 'CIRCULARITY',
-    'about.value2.desc': 'Sustainable Second-Hand',
-    'about.value3.title': 'SINGLE STORY',
-    'about.value3.desc': 'Only One Piece of Each Object',
-    'about.quote': '"Discover the perfect integrity within imperfection." · Wabi-Sabi',
-    'about.explore_space': 'EXPLORE LIVING SPACE',
+    'about.story': 'Our Story & Philosophy',
+    'about.title': 'Passion for Design & \n A Living Collection',
+    'about.para1': 'Didi Home emerged over the years as a reflection of a passion for design across diverse disciplines and dedicated craftsmanship. At the heart of its philosophy lies breathing new soul into what already exists through art and preservation, rather than mere consumption.',
+    'about.para2': 'From home renovation to bespoke clothing design, and from ceramics to artisanal decor, Didi Home is a living collection composed entirely of original pieces crafted to this day, with new creations added every day.',
+    'about.para3': 'Welcome to Didi Home.',
+    'about.value1.title': 'ORIGINAL DESIGN',
+    'about.value1.desc': 'Harmony Across Diverse Disciplines',
+    'about.value2.title': 'PRESERVE & REVITALIZE',
+    'about.value2.desc': 'Breathing Soul into What Exists',
+    'about.value3.title': 'LIVING COLLECTION',
+    'about.value3.desc': 'Original Pieces Added Daily',
+    'about.quote': '"Preserving what exists, breathing new soul through art." · Didi Home',
+    'about.explore_space': 'EXPLORE THE COLLECTION',
 
     // Admin panel toast or common actions
     'admin.added_success': 'successfully added to the atelier and published!',

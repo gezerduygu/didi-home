@@ -72,6 +72,10 @@ export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
               {t('about.para2')}
             </p>
 
+            <p className="font-serif text-lg italic text-brand-charcoal pt-1">
+              {t('about.para3')}
+            </p>
+
             {/* Earthy Core Values Icons */}
             <div className="grid grid-cols-3 gap-4 pt-4 border-t border-brand-sand/40 mt-8">
               <div className="flex flex-col items-center">
