@@ -60,11 +60,11 @@ export default function Header({
             onClick={onResetCategory}
             className="group flex flex-col items-center cursor-pointer"
           >
-            <h1 className="font-serif text-lg xs:text-2xl sm:text-5xl font-light tracking-[0.12em] xs:tracking-[0.25em] sm:tracking-[0.35em] text-brand-charcoal transition-all duration-300 group-hover:tracking-[0.42em] whitespace-nowrap">
+            <h1 className="font-serif text-2xl xs:text-3xl sm:text-5xl font-light tracking-[0.18em] xs:tracking-[0.28em] sm:tracking-[0.35em] text-brand-charcoal transition-all duration-300 group-hover:tracking-[0.42em] whitespace-nowrap">
               Didi Home
             </h1>
             {activeCategory && (
-              <span className="text-[8px] sm:text-[9px] font-sans tracking-[0.2em] sm:tracking-[0.4em] text-brand-warmgray uppercase mt-1 sm:mt-2">
+              <span className="text-[8px] sm:text-[9px] font-sans tracking-[0.2em] sm:tracking-[0.4em] text-brand-warmgray uppercase mt-0.5 sm:mt-2">
                 <span className="flex items-center gap-1 justify-center">
                   <Sparkles size={7} className="animate-pulse shrink-0" />
                   {getActiveCategoryTitle()}

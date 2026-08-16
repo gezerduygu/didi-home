@@ -237,10 +237,10 @@ export default function ProductGrid({
                     className="w-full h-full object-cover object-center transition-all duration-[1000ms] group-hover:scale-105 filter saturate-[0.95] group-hover:saturate-100"
                   />
                   
-                  {/* Subcategory Badge in place of old badges */}
+                  {/* Subcategory Badge moved to bottom-left corner */}
                   {product.subcategory && (
-                    <div className="absolute top-3 left-3 pointer-events-none">
-                      <span className="bg-brand-charcoal/85 text-brand-beige text-[8.5px] font-sans tracking-[0.2em] uppercase px-2.5 py-1 rounded-[1px] shadow-sm backdrop-blur-[2px] font-medium border border-white/10 flex items-center gap-1">
+                    <div className="absolute bottom-3 left-3 pointer-events-none z-10">
+                      <span className="bg-brand-charcoal/85 text-brand-beige text-[8.5px] font-sans tracking-[0.2em] uppercase px-2.5 py-1 rounded-[1px] shadow-sm backdrop-blur-[3px] font-medium border border-white/10 flex items-center gap-1">
                         <Tag size={8} className="text-brand-terracotta" />
                         {product.subcategory}
                       </span>
