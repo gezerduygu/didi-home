@@ -1,0 +1,50 @@
+[
+  {
+    "id": "houte-couture",
+    "title": "Haute Couture",
+    "titleEn": "Haute Couture",
+    "subtitle": "Özel Tasarım Nakışlı Kıyafetler",
+    "subtitleEn": "Bespoke Embroidered Clothing",
+    "description": "Sürdürülebilir, doğal liflerle dokunan kıyafetler ve dönemsel ikinci el gardırop seçkileri.",
+    "descriptionEn": "Sustainable clothing woven with natural fibers and seasonal vintage wardrobe selections.",
+    "image": "/images/haute-couture-cover.jpg",
+    "subcategories": [
+      "Kaftan & Kimono",
+      "Hırka & Yelek",
+      "Elbise & Tunik",
+      "İpek Şal & Aksesuar"
+    ]
+  },
+  {
+    "id": "seramik",
+    "title": "Seramik",
+    "titleEn": "Ceramics",
+    "subtitle": "El Yapımı Sanatsal Objeler",
+    "subtitleEn": "Handcrafted Art Objects",
+    "description": "Sırlı ve ham stoneware çamurundan elle üretilmiş, wabi-sabi felsefesini taşıyan eşsiz çamur formları.",
+    "descriptionEn": "Unique clay forms crafted by hand from glazed and raw stoneware clay carrying the wabi-sabi philosophy.",
+    "image": "/images/ceramic-cover.jpg",
+    "subcategories": [
+      "Vazo & Saksı",
+      "Fincan & Tabak",
+      "Kase & Meyvelik",
+      "Heykel & Buhurdanlık"
+    ]
+  },
+  {
+    "id": "ev-to-home",
+    "title": "Ev",
+    "titleEn": "Home Decor",
+    "subtitle": "Zamansız Ev Aksesuarları",
+    "subtitleEn": "Timeless Home Accessories",
+    "description": "Yaşanmışlık dolu vintage şamdanlar, dekoratif heykeller ve el dokuması sürdürülebilir ev süslemeleri.",
+    "descriptionEn": "Vintage candle holders full of character, decorative sculptures, and hand-woven home accents.",
+    "image": "/images/ev-illustration.jpg",
+    "subcategories": [
+      "Şamdan & Mumluk",
+      "Ayna & Çerçeve",
+      "Kırlent & Tekstil",
+      "Antika & Buluntu"
+    ]
+  }
+]
