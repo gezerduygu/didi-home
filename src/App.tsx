@@ -26,6 +26,46 @@ import {
 import { Product, CartItem, Category, CoverSettings, CategoryItem } from './types';
 import { useLanguage } from './context/LanguageContext';
 
+interface HistoryState {
+  category: Category | null;
+  productId: string | null;
+  isCartOpen: boolean;
+  isAboutOpen: boolean;
+  isAdminOpen: boolean;
+}
+
+const parseUrlState = (allProducts: Product[]): HistoryState => {
+  if (typeof window === 'undefined') {
+    return { category: null, productId: null, isCartOpen: false, isAboutOpen: false, isAdminOpen: false };
+  }
+  const path = window.location.pathname.toLowerCase().replace(/\/$/, '');
+  const searchParams = new URLSearchParams(window.location.search);
+  const paramProduct = searchParams.get('product');
+
+  if (path === '/admin') {
+    return {
+      category: null,
+      productId: null,
+      isCartOpen: false,
+      isAboutOpen: false,
+      isAdminOpen: true
+    };
+  }
+
+  let cat: Category | null = null;
+  if (path.startsWith('/category/')) {
+    cat = decodeURIComponent(path.replace('/category/', ''));
+  }
+
+  return {
+    category: cat,
+    productId: paramProduct || null,
+    isCartOpen: false,
+    isAboutOpen: false,
+    isAdminOpen: false
+  };
+};
+
 export default function App() {
   const { t, language } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
@@ -41,17 +81,33 @@ export default function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
 
-  // Initialize products & categories & covers & cart on load
+  // Initialize products & categories & covers & cart & history state on load
   useEffect(() => {
-    // Synchronously set stored data first for fast paint
-    setProducts(getStoredProducts());
+    const initialProducts = getStoredProducts();
+    setProducts(initialProducts);
     setCategories(getStoredCategories());
     setCovers(getStoredCovers());
+
+    const initial = parseUrlState(initialProducts);
+    setActiveCategory(initial.category);
+    setIsAdminOpen(initial.isAdminOpen);
+    if (initial.productId) {
+      const found = initialProducts.find(p => p.id === initial.productId);
+      if (found) setSelectedProduct(found);
+    }
+
+    // Set initial replaceState so the current history entry has a full state object
+    const currentUrl = window.location.pathname + window.location.search;
+    window.history.replaceState(initial, '', currentUrl);
 
     // Fetch disk file backed products from server
     fetchProductsFromServer().then(prods => {
       if (prods && prods.length > 0) {
         setProducts(prods);
+        if (initial.productId) {
+          const found = prods.find(p => p.id === initial.productId);
+          if (found) setSelectedProduct(found);
+        }
       }
     });
 
@@ -79,34 +135,146 @@ export default function App() {
     }
   }, []);
 
-  // URL routing for /admin
+  // Listen for browser / phone hardware / gesture back & forward buttons (Step-by-step back)
   useEffect(() => {
-    const checkPath = () => {
-      const path = window.location.pathname.toLowerCase().replace(/\/$/, '');
-      if (path === '/admin') {
-        setIsAdminOpen(true);
+    const handlePopState = (event: PopStateEvent) => {
+      const state: HistoryState = event.state || parseUrlState(products);
+      
+      setIsAdminOpen(Boolean(state.isAdminOpen));
+      setIsCartOpen(Boolean(state.isCartOpen));
+      setIsAboutOpen(Boolean(state.isAboutOpen));
+      setActiveCategory(state.category || null);
+
+      if (state.productId) {
+        const found = products.find(p => p.id === state.productId);
+        setSelectedProduct(found || null);
       } else {
-        setIsAdminOpen(false);
+        setSelectedProduct(null);
       }
     };
 
-    checkPath();
-    window.addEventListener('popstate', checkPath);
-    return () => window.removeEventListener('popstate', checkPath);
-  }, []);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [products]);
+
+  // Step-by-step History Navigation Handlers
+  const handleSelectCategory = (catId: Category | null) => {
+    if (catId === activeCategory && !selectedProduct && !isCartOpen && !isAboutOpen && !isAdminOpen) return;
+
+    const url = catId ? `/category/${catId}` : '/';
+    const newState: HistoryState = {
+      category: catId,
+      productId: null,
+      isCartOpen: false,
+      isAboutOpen: false,
+      isAdminOpen: false
+    };
+
+    window.history.pushState(newState, '', url);
+    setActiveCategory(catId);
+    setSelectedProduct(null);
+    setIsCartOpen(false);
+    setIsAboutOpen(false);
+    setIsAdminOpen(false);
+  };
+
+  const handleSelectProduct = (product: Product) => {
+    const url = activeCategory ? `/category/${activeCategory}?product=${product.id}` : `/?product=${product.id}`;
+    const newState: HistoryState = {
+      category: activeCategory,
+      productId: product.id,
+      isCartOpen: false,
+      isAboutOpen: false,
+      isAdminOpen: false
+    };
+
+    window.history.pushState(newState, '', url);
+    setSelectedProduct(product);
+  };
+
+  const handleCloseProduct = () => {
+    if (window.history.state?.productId) {
+      window.history.back();
+    } else {
+      const url = activeCategory ? `/category/${activeCategory}` : '/';
+      const newState: HistoryState = {
+        category: activeCategory,
+        productId: null,
+        isCartOpen: false,
+        isAboutOpen: false,
+        isAdminOpen: false
+      };
+      window.history.replaceState(newState, '', url);
+      setSelectedProduct(null);
+    }
+  };
+
+  const handleOpenCart = () => {
+    const newState: HistoryState = {
+      category: activeCategory,
+      productId: selectedProduct?.id || null,
+      isCartOpen: true,
+      isAboutOpen: false,
+      isAdminOpen: false
+    };
+    window.history.pushState(newState, '');
+    setIsCartOpen(true);
+  };
+
+  const handleCloseCart = () => {
+    if (window.history.state?.isCartOpen) {
+      window.history.back();
+    } else {
+      setIsCartOpen(false);
+    }
+  };
+
+  const handleOpenAbout = () => {
+    const newState: HistoryState = {
+      category: activeCategory,
+      productId: selectedProduct?.id || null,
+      isCartOpen: false,
+      isAboutOpen: true,
+      isAdminOpen: false
+    };
+    window.history.pushState(newState, '');
+    setIsAboutOpen(true);
+  };
+
+  const handleCloseAbout = () => {
+    if (window.history.state?.isAboutOpen) {
+      window.history.back();
+    } else {
+      setIsAboutOpen(false);
+    }
+  };
 
   const handleOpenAdmin = () => {
-    if (window.location.pathname.toLowerCase().replace(/\/$/, '') !== '/admin') {
-      window.history.pushState({}, '', '/admin');
-    }
+    const newState: HistoryState = {
+      category: null,
+      productId: null,
+      isCartOpen: false,
+      isAboutOpen: false,
+      isAdminOpen: true
+    };
+    window.history.pushState(newState, '', '/admin');
     setIsAdminOpen(true);
   };
 
   const handleCloseAdmin = () => {
-    if (window.location.pathname.toLowerCase().replace(/\/$/, '') === '/admin') {
-      window.history.pushState({}, '', '/');
+    if (window.history.state?.isAdminOpen) {
+      window.history.back();
+    } else {
+      const newState: HistoryState = {
+        category: null,
+        productId: null,
+        isCartOpen: false,
+        isAboutOpen: false,
+        isAdminOpen: false
+      };
+      window.history.pushState(newState, '', '/');
+      setIsAdminOpen(false);
     }
-    setIsAdminOpen(false);
     setProducts(getStoredProducts());
   };
 
@@ -377,9 +545,9 @@ export default function App() {
       {/* Shared Navigation Header */}
       <Header
         cartCount={totalCartItems}
-        onOpenCart={() => setIsCartOpen(true)}
-        onOpenAbout={() => setIsAboutOpen(true)}
-        onResetCategory={() => setActiveCategory(null)}
+        onOpenCart={handleOpenCart}
+        onOpenAbout={handleOpenAbout}
+        onResetCategory={() => handleSelectCategory(null)}
         activeCategory={activeCategory}
         categories={categories}
       />
@@ -424,7 +592,7 @@ export default function App() {
                       subtitle={subtitle}
                       image={image}
                       itemCount={getCategoryCount(cat.id)}
-                      onSelect={(selectedId) => setActiveCategory(selectedId)}
+                      onSelect={(selectedId) => handleSelectCategory(selectedId)}
                     />
                   );
                 })}
@@ -441,7 +609,7 @@ export default function App() {
                 </p>
                 <button
                   id="btn-discover-story"
-                  onClick={() => setIsAboutOpen(true)}
+                  onClick={handleOpenAbout}
                   className="mt-2 text-xs font-sans tracking-widest text-brand-charcoal hover:text-brand-terracotta font-medium flex items-center gap-1.5 transition-colors duration-200 group uppercase"
                 >
                   {t('phil.more')}
@@ -464,8 +632,8 @@ export default function App() {
                 products={products}
                 category={activeCategory}
                 categories={categories}
-                onBack={() => setActiveCategory(null)}
-                onSelectProduct={(prod) => setSelectedProduct(prod)}
+                onBack={() => handleSelectCategory(null)}
+                onSelectProduct={(prod) => handleSelectProduct(prod)}
               />
             </motion.div>
           )}
@@ -480,7 +648,7 @@ export default function App() {
         {selectedProduct && (
           <ProductDetailModal
             product={selectedProduct}
-            onClose={() => setSelectedProduct(null)}
+            onClose={handleCloseProduct}
             onAddToCart={handleAddToCart}
           />
         )}
@@ -491,7 +659,7 @@ export default function App() {
         {isCartOpen && (
           <CartDrawer
             isOpen={isCartOpen}
-            onClose={() => setIsCartOpen(false)}
+            onClose={handleCloseCart}
             cartItems={cart}
             onUpdateQuantity={handleUpdateCartQuantity}
             onRemoveItem={handleRemoveCartItem}
@@ -505,7 +673,7 @@ export default function App() {
         {isAboutOpen && (
           <AboutModal
             isOpen={isAboutOpen}
-            onClose={() => setIsAboutOpen(false)}
+            onClose={handleCloseAbout}
           />
         )}
       </AnimatePresence>
@@ -516,34 +684,41 @@ export default function App() {
           <div className="flex items-center gap-2">
             <span>{t('footer.istanbul')}</span>
           </div>
-          <div className="flex gap-6">
+          <div className="flex flex-wrap items-center justify-center gap-6">
             <button
               id="footer-about"
-              onClick={() => setIsAboutOpen(true)}
+              onClick={handleOpenAbout}
               className="hover:text-brand-charcoal transition-colors"
             >
               {t('nav.story')}
             </button>
             <button
               id="footer-seramik"
-              onClick={() => setActiveCategory('seramik')}
+              onClick={() => handleSelectCategory('seramik')}
               className="hover:text-brand-charcoal transition-colors"
             >
               {t('nav.ceramic')}
             </button>
             <button
               id="footer-clothing"
-              onClick={() => setActiveCategory('houte-couture')}
+              onClick={() => handleSelectCategory('houte-couture')}
               className="hover:text-brand-charcoal transition-colors"
             >
               {t('footer.clothes')}
             </button>
             <button
               id="footer-decor"
-              onClick={() => setActiveCategory('ev-to-home')}
+              onClick={() => handleSelectCategory('ev-to-home')}
               className="hover:text-brand-charcoal transition-colors"
             >
               {t('footer.decor')}
+            </button>
+            <button
+              id="footer-admin-btn"
+              onClick={handleOpenAdmin}
+              className="hover:text-brand-charcoal transition-colors uppercase opacity-75 hover:opacity-100"
+            >
+              {t('footer.admin')}
             </button>
           </div>
           <div className="text-[10px] text-brand-warmgray/60 italic">
