@@ -232,7 +232,7 @@ export const INITIAL_PRODUCTS: Product[] = [
 
 export const getStoredProducts = (): Product[] => {
   if (typeof window === 'undefined') return INITIAL_PRODUCTS;
-  const stored = localStorage.getItem('didi_home_products');
+  const stored = localStorage.getItem('didi_home_products') || localStorage.getItem('didi_products');
   if (stored) {
     try {
       const parsed: Product[] = JSON.parse(stored);
@@ -255,6 +255,7 @@ export const fetchProductsFromServer = async (): Promise<Product[]> => {
     const cloudProducts = await fetchStoreData<Product[]>('products', INITIAL_PRODUCTS);
     if (Array.isArray(cloudProducts) && cloudProducts.length > 0) {
       localStorage.setItem('didi_home_products', JSON.stringify(cloudProducts));
+      localStorage.setItem('didi_products', JSON.stringify(cloudProducts));
       return cloudProducts;
     }
   } catch (e) {
@@ -268,6 +269,7 @@ export const fetchProductsFromServer = async (): Promise<Product[]> => {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
         localStorage.setItem('didi_home_products', JSON.stringify(data));
+        localStorage.setItem('didi_products', JSON.stringify(data));
         return data;
       }
     }
@@ -280,6 +282,7 @@ export const fetchProductsFromServer = async (): Promise<Product[]> => {
 export const saveProducts = (products: Product[]) => {
   if (typeof window !== 'undefined') {
     localStorage.setItem('didi_home_products', JSON.stringify(products));
+    localStorage.setItem('didi_products', JSON.stringify(products));
     
     // 1. Save to Supabase Cloud
     saveStoreData('products', products).catch(err => {
@@ -304,7 +307,7 @@ export const DEFAULT_COVERS: CoverSettings = {
 
 export const getStoredCovers = (): CoverSettings => {
   if (typeof window === 'undefined') return DEFAULT_COVERS;
-  const stored = localStorage.getItem('didi_home_covers');
+  const stored = localStorage.getItem('didi_home_covers') || localStorage.getItem('didi_covers');
   if (stored) {
     try {
       const parsed = JSON.parse(stored);
@@ -329,6 +332,7 @@ export const fetchCoversFromServer = async (): Promise<CoverSettings> => {
     if (cloudCovers && typeof cloudCovers === 'object') {
       const merged = { ...DEFAULT_COVERS, ...cloudCovers };
       localStorage.setItem('didi_home_covers', JSON.stringify(merged));
+      localStorage.setItem('didi_covers', JSON.stringify(merged));
       return merged;
     }
   } catch (e) {
@@ -343,6 +347,7 @@ export const fetchCoversFromServer = async (): Promise<CoverSettings> => {
       if (data && typeof data === 'object') {
         const merged = { ...DEFAULT_COVERS, ...data };
         localStorage.setItem('didi_home_covers', JSON.stringify(merged));
+        localStorage.setItem('didi_covers', JSON.stringify(merged));
         return merged;
       }
     }
@@ -405,7 +410,7 @@ export const DEFAULT_CATEGORIES: CategoryItem[] = [
 
 export const getStoredCategories = (): CategoryItem[] => {
   if (typeof window === 'undefined') return DEFAULT_CATEGORIES;
-  const stored = localStorage.getItem('didi_home_categories');
+  const stored = localStorage.getItem('didi_home_categories') || localStorage.getItem('didi_categories');
   if (stored) {
     try {
       const parsed = JSON.parse(stored);
@@ -427,6 +432,7 @@ export const fetchCategoriesFromServer = async (): Promise<CategoryItem[]> => {
     const cloudCategories = await fetchStoreData<CategoryItem[]>('categories', DEFAULT_CATEGORIES);
     if (Array.isArray(cloudCategories) && cloudCategories.length > 0) {
       localStorage.setItem('didi_home_categories', JSON.stringify(cloudCategories));
+      localStorage.setItem('didi_categories', JSON.stringify(cloudCategories));
       return cloudCategories;
     }
   } catch (e) {
@@ -440,6 +446,7 @@ export const fetchCategoriesFromServer = async (): Promise<CategoryItem[]> => {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
         localStorage.setItem('didi_home_categories', JSON.stringify(data));
+        localStorage.setItem('didi_categories', JSON.stringify(data));
         return data;
       }
     }
@@ -452,6 +459,7 @@ export const fetchCategoriesFromServer = async (): Promise<CategoryItem[]> => {
 export const saveCategories = (categories: CategoryItem[]) => {
   if (typeof window !== 'undefined') {
     localStorage.setItem('didi_home_categories', JSON.stringify(categories));
+    localStorage.setItem('didi_categories', JSON.stringify(categories));
     
     // 1. Save to Supabase Cloud
     saveStoreData('categories', categories).catch(err => {
@@ -470,6 +478,7 @@ export const saveCategories = (categories: CategoryItem[]) => {
 export const saveCovers = (covers: CoverSettings) => {
   if (typeof window !== 'undefined') {
     localStorage.setItem('didi_home_covers', JSON.stringify(covers));
+    localStorage.setItem('didi_covers', JSON.stringify(covers));
     
     // 1. Save to Supabase Cloud
     saveStoreData('covers', covers).catch(err => {

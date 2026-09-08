@@ -36,20 +36,24 @@ export default function ProductGrid({
   }, [categories, category]);
 
   const subcategoriesList = useMemo(() => {
-    const predefined = categoryItem?.subcategories || [];
-    const fromProducts = Array.from(
+    if (categoryItem?.subcategories && categoryItem.subcategories.length > 0) {
+      return categoryItem.subcategories;
+    }
+    return Array.from(
       new Set(products.filter(p => p.category === category && p.subcategory).map(p => p.subcategory as string))
     );
-    const combined = [...predefined];
-    fromProducts.forEach(s => {
-      if (!combined.includes(s)) combined.push(s);
-    });
-    return combined;
   }, [categoryItem, products, category]);
+
+  // Reset selected subcategory if it is no longer valid
+  React.useEffect(() => {
+    if (selectedSubcategory !== 'all' && !subcategoriesList.includes(selectedSubcategory)) {
+      setSelectedSubcategory('all');
+    }
+  }, [subcategoriesList, selectedSubcategory]);
 
   const categoryName = useMemo(() => {
     if (categoryItem) {
-      return language === 'en' && categoryItem.titleEn ? categoryItem.titleEn : categoryItem.title;
+      return language === 'en' && categoryItem.titleEn ? categoryItem.titleEn : (categoryItem.title || category);
     }
     switch (category) {
       case 'houte-couture': return t('cat.hc.title');
@@ -58,6 +62,13 @@ export default function ProductGrid({
       default: return category;
     }
   }, [category, categoryItem, language, t]);
+
+  const categorySubtitle = useMemo(() => {
+    if (categoryItem?.subtitle) {
+      return language === 'en' && categoryItem.subtitleEn ? categoryItem.subtitleEn : categoryItem.subtitle;
+    }
+    return '';
+  }, [categoryItem, language]);
 
   const categoryDesc = useMemo(() => {
     if (categoryItem?.description) {

@@ -138,7 +138,14 @@ export default function App() {
   // Listen for browser / phone hardware / gesture back & forward buttons (Step-by-step back)
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      const state: HistoryState = event.state || parseUrlState(products);
+      const freshProducts = getStoredProducts();
+      const freshCategories = getStoredCategories();
+      const freshCovers = getStoredCovers();
+      setProducts(freshProducts);
+      setCategories(freshCategories);
+      setCovers(freshCovers);
+
+      const state: HistoryState = event.state || parseUrlState(freshProducts);
       
       setIsAdminOpen(Boolean(state.isAdminOpen));
       setIsCartOpen(Boolean(state.isCartOpen));
@@ -146,7 +153,7 @@ export default function App() {
       setActiveCategory(state.category || null);
 
       if (state.productId) {
-        const found = products.find(p => p.id === state.productId);
+        const found = freshProducts.find(p => p.id === state.productId);
         setSelectedProduct(found || null);
       } else {
         setSelectedProduct(null);
@@ -155,7 +162,7 @@ export default function App() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [products]);
+  }, []);
 
   // Step-by-step History Navigation Handlers
   const handleSelectCategory = (catId: Category | null) => {
@@ -262,6 +269,13 @@ export default function App() {
   };
 
   const handleCloseAdmin = () => {
+    const freshProducts = getStoredProducts();
+    const freshCategories = getStoredCategories();
+    const freshCovers = getStoredCovers();
+    setProducts(freshProducts);
+    setCategories(freshCategories);
+    setCovers(freshCovers);
+
     if (window.history.state?.isAdminOpen) {
       window.history.back();
     } else {
@@ -275,7 +289,6 @@ export default function App() {
       window.history.pushState(newState, '', '/');
       setIsAdminOpen(false);
     }
-    setProducts(getStoredProducts());
   };
 
   // Scroll to top on category change (fixes scrolled home page issue)
@@ -570,11 +583,11 @@ export default function App() {
                 {categories.map((cat) => {
                   const title = language === 'en' && cat.titleEn 
                     ? cat.titleEn 
-                    : (cat.id === 'houte-couture' ? t('cat.hc.title') : cat.id === 'seramik' ? t('cat.ceramic.title') : cat.id === 'ev-to-home' ? t('cat.home.title') : cat.title);
+                    : (cat.title || (cat.id === 'houte-couture' ? t('cat.hc.title') : cat.id === 'seramik' ? t('cat.ceramic.title') : cat.id === 'ev-to-home' ? t('cat.home.title') : cat.id));
                   
                   const subtitle = language === 'en' && cat.subtitleEn 
                     ? cat.subtitleEn 
-                    : (cat.id === 'houte-couture' ? t('cat.hc.subtitle') : cat.id === 'seramik' ? t('cat.ceramic.subtitle') : cat.id === 'ev-to-home' ? t('cat.home.subtitle') : (cat.subtitle || ''));
+                    : (cat.subtitle !== undefined ? cat.subtitle : (cat.id === 'houte-couture' ? t('cat.hc.subtitle') : cat.id === 'seramik' ? t('cat.ceramic.subtitle') : cat.id === 'ev-to-home' ? t('cat.home.subtitle') : ''));
 
                   const image = cat.id === 'houte-couture' 
                     ? covers.hauteCoutureCover 
