@@ -356,6 +356,12 @@ export default function App() {
     }
   };
 
+  // Reorder Products (Admin Drag and Drop)
+  const handleReorderProducts = (reorderedProducts: Product[]) => {
+    setProducts(reorderedProducts);
+    saveProducts(reorderedProducts);
+  };
+
   // Delete Product (Admin)
   const handleDeleteProduct = (id: string) => {
     const updatedProducts = products.filter(p => p.id !== id);
@@ -522,6 +528,7 @@ export default function App() {
           onAddProduct={handleAddProduct}
           onUpdateProduct={handleUpdateProduct}
           onDeleteProduct={handleDeleteProduct}
+          onReorderProducts={handleReorderProducts}
           onResetProducts={handleResetProducts}
           onAddCategory={handleAddCategory}
           onUpdateCategory={handleUpdateCategory}

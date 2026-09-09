@@ -25,7 +25,11 @@ import {
   CheckCircle2,
   SlidersHorizontal,
   ExternalLink,
-  Eye
+  Eye,
+  GripVertical,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpDown
 } from 'lucide-react';
 import { Product, Category, CoverSettings, CategoryItem } from '../types';
 import { DEFAULT_COVERS, DEFAULT_CATEGORIES } from '../data';
@@ -38,6 +42,7 @@ interface AdminPanelProps {
   onAddProduct: (product: Product) => void;
   onUpdateProduct: (product: Product) => void;
   onDeleteProduct: (id: string) => void;
+  onReorderProducts?: (products: Product[]) => void;
   onResetProducts: () => void;
   onAddCategory: (category: CategoryItem) => void;
   onUpdateCategory: (category: CategoryItem) => void;
@@ -244,6 +249,7 @@ export default function AdminPanel({
   onAddProduct,
   onUpdateProduct,
   onDeleteProduct,
+  onReorderProducts,
   onResetProducts,
   onAddCategory,
   onUpdateCategory,
@@ -254,6 +260,8 @@ export default function AdminPanel({
   onClose
 }: AdminPanelProps) {
   const { language, t } = useLanguage();
+  const [draggedProductId, setDraggedProductId] = useState<string | null>(null);
+  const [dragOverProductId, setDragOverProductId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     if (typeof window !== 'undefined') {
       return sessionStorage.getItem('didi_admin_auth') === 'true';
@@ -772,6 +780,64 @@ export default function AdminPanel({
     }
   };
 
+  // --- Product Drag & Drop Reordering Handlers ---
+  const handleProductDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedProductId(id);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+  };
+
+  const handleProductDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverProductId !== id) {
+      setDragOverProductId(id);
+    }
+  };
+
+  const handleProductDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    const sourceId = draggedProductId || e.dataTransfer.getData('text/plain');
+    setDraggedProductId(null);
+    setDragOverProductId(null);
+
+    if (!sourceId || sourceId === targetId) return;
+
+    const fromIndex = products.findIndex(p => p.id === sourceId);
+    const toIndex = products.findIndex(p => p.id === targetId);
+
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const updated = [...products];
+    const [moved] = updated.splice(fromIndex, 1);
+    updated.splice(toIndex, 0, moved);
+
+    if (onReorderProducts) {
+      onReorderProducts(updated);
+    }
+  };
+
+  const handleProductDragEnd = () => {
+    setDraggedProductId(null);
+    setDragOverProductId(null);
+  };
+
+  // Move product up or down by 1 position (Touch / 1-click fallback)
+  const handleMoveProductStep = (productId: string, direction: 'up' | 'down') => {
+    const idx = products.findIndex(p => p.id === productId);
+    if (idx === -1) return;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= products.length) return;
+
+    const updated = [...products];
+    const [moved] = updated.splice(idx, 1);
+    updated.splice(targetIdx, 0, moved);
+
+    if (onReorderProducts) {
+      onReorderProducts(updated);
+    }
+  };
+
   // Filtered Products List
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -1065,6 +1131,16 @@ export default function AdminPanel({
 
             {/* Products Management Table/List */}
             <div className="bg-brand-beige border border-brand-sand/40 rounded-sm overflow-hidden shadow-sm">
+              {/* Informative Reordering Tip Banner */}
+              <div className="flex items-center gap-2 text-[11px] text-brand-warmgray px-4 py-2.5 bg-brand-sand/20 border-b border-brand-sand/30 font-sans">
+                <ArrowUpDown size={13} className="text-brand-terracotta shrink-0" />
+                <span>
+                  {language === 'tr' 
+                    ? '💡 İpucu: Ürünleri basılı tutup yukarı-aşağı sürükleyerek veya yanlarındaki oklara basarak mağaza akışındaki sıralamasını anında değiştirebilirsiniz.' 
+                    : '💡 Tip: Drag and drop products or use the arrows to instantly change their order in the storefront feed.'}
+                </span>
+              </div>
+
               {filteredProducts.length === 0 ? (
                 <div className="text-center py-16 px-6">
                   <p className="text-sm text-brand-warmgray/80 italic">
@@ -1082,7 +1158,9 @@ export default function AdminPanel({
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
                       <tr className="bg-brand-sand/20 border-b border-brand-sand/40 text-brand-warmgray font-semibold tracking-wider uppercase text-[10px]">
-                        <th className="py-4 px-5 w-16">{language === 'tr' ? 'Görsel' : 'Image'}</th>
+                        <th className="py-4 px-3 w-10 text-center">#</th>
+                        <th className="py-4 px-2 w-12 text-center">{language === 'tr' ? 'Sıra' : 'Move'}</th>
+                        <th className="py-4 px-4 w-16">{language === 'tr' ? 'Görsel' : 'Image'}</th>
                         <th className="py-4 px-5">{language === 'tr' ? 'Ürün Adı' : 'Product Name'}</th>
                         <th className="py-4 px-5">{language === 'tr' ? 'Kategori & Alt Sınıf' : 'Category & Subcategory'}</th>
                         <th className="py-4 px-5">{language === 'tr' ? 'Fiyat' : 'Price'}</th>
@@ -1092,21 +1170,80 @@ export default function AdminPanel({
                     </thead>
                     <tbody className="divide-y divide-brand-sand/20">
                       {filteredProducts.map((prod) => {
+                        const globalIndex = products.findIndex(p => p.id === prod.id);
+                        const isDraggingThis = draggedProductId === prod.id;
+                        const isOverThis = dragOverProductId === prod.id;
+                        const isFirst = globalIndex === 0;
+                        const isLast = globalIndex === products.length - 1;
+
                         const catMatch = categories.find(c => c.id === prod.category);
                         const displayCat = catMatch 
                           ? (language === 'en' && catMatch.titleEn ? catMatch.titleEn : catMatch.title)
                           : prod.category;
 
                         return (
-                          <tr key={prod.id} className="hover:bg-brand-sand/5 transition-colors">
+                          <tr
+                            key={prod.id}
+                            draggable
+                            onDragStart={(e) => handleProductDragStart(e, prod.id)}
+                            onDragOver={(e) => handleProductDragOver(e, prod.id)}
+                            onDrop={(e) => handleProductDrop(e, prod.id)}
+                            onDragEnd={handleProductDragEnd}
+                            className={`transition-all duration-150 select-none ${
+                              isDraggingThis
+                                ? 'opacity-40 bg-brand-sand/40'
+                                : isOverThis
+                                ? 'bg-brand-terracotta/15 border-t-2 border-brand-terracotta'
+                                : 'hover:bg-brand-sand/10'
+                            }`}
+                          >
+                            {/* Sequence Number */}
+                            <td className="py-3 px-3 text-center text-[11px] font-sans font-semibold text-brand-warmgray/70">
+                              <span className="inline-block min-w-[20px] py-0.5 px-1 bg-brand-sand/30 rounded text-[10px] text-brand-charcoal">
+                                {globalIndex + 1}
+                              </span>
+                            </td>
+
+                            {/* Drag Handle & Up/Down Arrows */}
+                            <td className="py-3 px-2 text-center">
+                              <div className="flex items-center justify-center gap-0.5">
+                                <div
+                                  className="p-1 text-brand-warmgray/60 hover:text-brand-charcoal cursor-grab active:cursor-grabbing"
+                                  title={language === 'tr' ? 'Sıralamak için basılı tutup sürükleyin' : 'Drag to reorder'}
+                                >
+                                  <GripVertical size={15} />
+                                </div>
+                                <div className="flex flex-col -space-y-1">
+                                  <button
+                                    type="button"
+                                    disabled={isFirst}
+                                    onClick={(e) => { e.stopPropagation(); handleMoveProductStep(prod.id, 'up'); }}
+                                    className={`p-0.5 transition-colors ${isFirst ? 'text-brand-sand/40 cursor-not-allowed' : 'text-brand-warmgray hover:text-brand-charcoal hover:bg-brand-sand/30 rounded'}`}
+                                    title={language === 'tr' ? 'Bir yukarı taşı' : 'Move up'}
+                                  >
+                                    <ChevronUp size={12} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={isLast}
+                                    onClick={(e) => { e.stopPropagation(); handleMoveProductStep(prod.id, 'down'); }}
+                                    className={`p-0.5 transition-colors ${isLast ? 'text-brand-sand/40 cursor-not-allowed' : 'text-brand-warmgray hover:text-brand-charcoal hover:bg-brand-sand/30 rounded'}`}
+                                    title={language === 'tr' ? 'Bir aşağı taşı' : 'Move down'}
+                                  >
+                                    <ChevronDown size={12} />
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+
                             {/* Image Thumbnail */}
-                            <td className="py-3 px-5">
+                            <td className="py-3 px-4">
                               <div className="w-10 h-12 bg-brand-sand/10 border border-brand-sand/30 rounded-[2px] overflow-hidden">
                                 <img
                                   src={prod.image}
                                   alt={prod.title}
                                   referrerPolicy="no-referrer"
-                                  className="w-full h-full object-cover"
+                                  className="w-full h-full object-cover pointer-events-none"
                                 />
                               </div>
                             </td>
@@ -1158,6 +1295,7 @@ export default function AdminPanel({
                             <td className="py-3 px-5 text-right whitespace-nowrap">
                               <div className="flex items-center justify-end gap-2">
                                 <button
+                                  type="button"
                                   onClick={() => handleOpenEdit(prod)}
                                   className="p-1.5 text-brand-warmgray hover:text-brand-charcoal hover:bg-brand-sand/20 rounded-full transition-colors"
                                   title={language === 'tr' ? 'Düzenle' : 'Edit'}
@@ -1165,6 +1303,7 @@ export default function AdminPanel({
                                   <Edit2 size={14} />
                                 </button>
                                 <button
+                                  type="button"
                                   onClick={() => handleDelete(prod)}
                                   className="p-1.5 text-brand-warmgray hover:text-brand-terracotta hover:bg-brand-sand/20 rounded-full transition-colors"
                                   title={language === 'tr' ? 'Sil' : 'Delete'}
