@@ -83,6 +83,20 @@ export default function App() {
 
   // Initialize products & categories & covers & cart & history state on load
   useEffect(() => {
+    // Clear stale local storage cache once to guarantee user gets fresh Supabase clean images
+    const CURRENT_VERSION = 'v2026_clean_corners_v3';
+    try {
+      if (localStorage.getItem('didi_cache_ver') !== CURRENT_VERSION) {
+        localStorage.removeItem('didi_home_products');
+        localStorage.removeItem('didi_products');
+        localStorage.removeItem('didi_home_covers');
+        localStorage.removeItem('didi_covers');
+        localStorage.setItem('didi_cache_ver', CURRENT_VERSION);
+      }
+    } catch (e) {
+      console.warn('Cache ver check error:', e);
+    }
+
     const initialProducts = getStoredProducts();
     setProducts(initialProducts);
     setCategories(getStoredCategories());
