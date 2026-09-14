@@ -254,8 +254,12 @@ export const fetchProductsFromServer = async (): Promise<Product[]> => {
   try {
     const cloudProducts = await fetchStoreData<Product[]>('products', INITIAL_PRODUCTS);
     if (Array.isArray(cloudProducts) && cloudProducts.length > 0) {
-      localStorage.setItem('didi_home_products', JSON.stringify(cloudProducts));
-      localStorage.setItem('didi_products', JSON.stringify(cloudProducts));
+      try {
+        localStorage.setItem('didi_home_products', JSON.stringify(cloudProducts));
+        localStorage.setItem('didi_products', JSON.stringify(cloudProducts));
+      } catch (e) {
+        console.warn('localStorage caching failed', e);
+      }
       return cloudProducts;
     }
   } catch (e) {
@@ -268,8 +272,12 @@ export const fetchProductsFromServer = async (): Promise<Product[]> => {
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
-        localStorage.setItem('didi_home_products', JSON.stringify(data));
-        localStorage.setItem('didi_products', JSON.stringify(data));
+        try {
+          localStorage.setItem('didi_home_products', JSON.stringify(data));
+          localStorage.setItem('didi_products', JSON.stringify(data));
+        } catch (e) {
+          console.warn('localStorage caching failed', e);
+        }
         return data;
       }
     }
@@ -281,8 +289,12 @@ export const fetchProductsFromServer = async (): Promise<Product[]> => {
 
 export const saveProducts = (products: Product[]) => {
   if (typeof window !== 'undefined') {
-    localStorage.setItem('didi_home_products', JSON.stringify(products));
-    localStorage.setItem('didi_products', JSON.stringify(products));
+    try {
+      localStorage.setItem('didi_home_products', JSON.stringify(products));
+      localStorage.setItem('didi_products', JSON.stringify(products));
+    } catch (e) {
+      console.warn('localStorage caching failed (quota limit reached), saving to Supabase directly:', e);
+    }
     
     // 1. Save to Supabase Cloud
     saveStoreData('products', products).catch(err => {
@@ -331,8 +343,12 @@ export const fetchCoversFromServer = async (): Promise<CoverSettings> => {
     const cloudCovers = await fetchStoreData<CoverSettings>('covers', DEFAULT_COVERS);
     if (cloudCovers && typeof cloudCovers === 'object') {
       const merged = { ...DEFAULT_COVERS, ...cloudCovers };
-      localStorage.setItem('didi_home_covers', JSON.stringify(merged));
-      localStorage.setItem('didi_covers', JSON.stringify(merged));
+      try {
+        localStorage.setItem('didi_home_covers', JSON.stringify(merged));
+        localStorage.setItem('didi_covers', JSON.stringify(merged));
+      } catch (e) {
+        console.warn('localStorage caching failed for covers', e);
+      }
       return merged;
     }
   } catch (e) {
@@ -346,8 +362,12 @@ export const fetchCoversFromServer = async (): Promise<CoverSettings> => {
       const data = await res.json();
       if (data && typeof data === 'object') {
         const merged = { ...DEFAULT_COVERS, ...data };
-        localStorage.setItem('didi_home_covers', JSON.stringify(merged));
-        localStorage.setItem('didi_covers', JSON.stringify(merged));
+        try {
+          localStorage.setItem('didi_home_covers', JSON.stringify(merged));
+          localStorage.setItem('didi_covers', JSON.stringify(merged));
+        } catch (e) {
+          console.warn('localStorage caching failed for covers', e);
+        }
         return merged;
       }
     }
@@ -431,8 +451,12 @@ export const fetchCategoriesFromServer = async (): Promise<CategoryItem[]> => {
   try {
     const cloudCategories = await fetchStoreData<CategoryItem[]>('categories', DEFAULT_CATEGORIES);
     if (Array.isArray(cloudCategories) && cloudCategories.length > 0) {
-      localStorage.setItem('didi_home_categories', JSON.stringify(cloudCategories));
-      localStorage.setItem('didi_categories', JSON.stringify(cloudCategories));
+      try {
+        localStorage.setItem('didi_home_categories', JSON.stringify(cloudCategories));
+        localStorage.setItem('didi_categories', JSON.stringify(cloudCategories));
+      } catch (e) {
+        console.warn('localStorage caching failed for categories', e);
+      }
       return cloudCategories;
     }
   } catch (e) {
@@ -445,8 +469,12 @@ export const fetchCategoriesFromServer = async (): Promise<CategoryItem[]> => {
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
-        localStorage.setItem('didi_home_categories', JSON.stringify(data));
-        localStorage.setItem('didi_categories', JSON.stringify(data));
+        try {
+          localStorage.setItem('didi_home_categories', JSON.stringify(data));
+          localStorage.setItem('didi_categories', JSON.stringify(data));
+        } catch (e) {
+          console.warn('localStorage caching failed for categories', e);
+        }
         return data;
       }
     }
@@ -458,8 +486,12 @@ export const fetchCategoriesFromServer = async (): Promise<CategoryItem[]> => {
 
 export const saveCategories = (categories: CategoryItem[]) => {
   if (typeof window !== 'undefined') {
-    localStorage.setItem('didi_home_categories', JSON.stringify(categories));
-    localStorage.setItem('didi_categories', JSON.stringify(categories));
+    try {
+      localStorage.setItem('didi_home_categories', JSON.stringify(categories));
+      localStorage.setItem('didi_categories', JSON.stringify(categories));
+    } catch (e) {
+      console.warn('localStorage caching failed for categories', e);
+    }
     
     // 1. Save to Supabase Cloud
     saveStoreData('categories', categories).catch(err => {
@@ -477,8 +509,12 @@ export const saveCategories = (categories: CategoryItem[]) => {
 
 export const saveCovers = (covers: CoverSettings) => {
   if (typeof window !== 'undefined') {
-    localStorage.setItem('didi_home_covers', JSON.stringify(covers));
-    localStorage.setItem('didi_covers', JSON.stringify(covers));
+    try {
+      localStorage.setItem('didi_home_covers', JSON.stringify(covers));
+      localStorage.setItem('didi_covers', JSON.stringify(covers));
+    } catch (e) {
+      console.warn('localStorage caching failed for covers', e);
+    }
     
     // 1. Save to Supabase Cloud
     saveStoreData('covers', covers).catch(err => {
