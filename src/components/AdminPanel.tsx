@@ -154,82 +154,33 @@ const compressImage = (file: File): Promise<string> => {
       const img = new Image();
       img.src = event.target?.result as string;
       img.onload = () => {
-        const removeWatermarkFromCanvas = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
-          const boxW = Math.min(65, Math.floor(w * 0.15));
-          const boxH = Math.min(65, Math.floor(h * 0.15));
-          const startX = Math.max(0, w - boxW - 5);
-          const startY = Math.max(0, h - boxH - 5);
-
-          if (startX <= 0 || startY <= 0) return;
-
-          const topSample = ctx.getImageData(startX, Math.max(0, startY - 1), boxW + 5, 1).data;
-          const leftSample = ctx.getImageData(Math.max(0, startX - 1), startY, 1, boxH + 5).data;
-
-          const boxData = ctx.getImageData(startX, startY, boxW + 5, boxH + 5);
-          const data = boxData.data;
-
-          for (let y = 0; y < boxH + 5; y++) {
-            for (let x = 0; x < boxW + 5; x++) {
-              const idx = (y * (boxW + 5) + x) * 4;
-              const topIdx = Math.min(x, boxW + 4) * 4;
-              const leftIdx = Math.min(y, boxH + 4) * 4;
-
-              const weightY = y / (boxH + 5);
-
-              data[idx]     = Math.round(topSample[topIdx]     * (1 - weightY) + leftSample[leftIdx]     * weightY);
-              data[idx + 1] = Math.round(topSample[topIdx + 1] * (1 - weightY) + leftSample[leftIdx + 1] * weightY);
-              data[idx + 2] = Math.round(topSample[topIdx + 2] * (1 - weightY) + leftSample[leftIdx + 2] * weightY);
-            }
-          }
-
-          ctx.putImageData(boxData, startX, startY);
-        };
-
-        const getCompressed = (w: number, h: number, q: number): string => {
-          const canvas = document.createElement('canvas');
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, w, h);
-            removeWatermarkFromCanvas(ctx, w, h);
-            return canvas.toDataURL('image/jpeg', q);
-          }
-          return event.target?.result as string;
-        };
-
-        const MAX_WIDTH_LIMIT = 500;
-        const MAX_HEIGHT_LIMIT = 650;
+        const MAX_WIDTH_LIMIT = 1200;
+        const MAX_HEIGHT_LIMIT = 1500;
         let width = img.width;
         let height = img.height;
 
         if (width > height) {
           if (width > MAX_WIDTH_LIMIT) {
-            height *= MAX_WIDTH_LIMIT / width;
+            height = Math.round(height * (MAX_WIDTH_LIMIT / width));
             width = MAX_WIDTH_LIMIT;
           }
         } else {
           if (height > MAX_HEIGHT_LIMIT) {
-            width *= MAX_HEIGHT_LIMIT / height;
+            width = Math.round(width * (MAX_HEIGHT_LIMIT / height));
             height = MAX_HEIGHT_LIMIT;
           }
         }
 
-        // Iteratively downscale and compress if size is larger than ~45KB
-        let quality = 0.7;
-        let currentDataUrl = getCompressed(width, height, quality);
-        let attempts = 0;
-
-        while (currentDataUrl.length * 0.75 > 45 * 1024 && attempts < 5) {
-          attempts++;
-          quality -= 0.15;
-          width = Math.round(width * 0.85);
-          height = Math.round(height * 0.85);
-          if (quality < 0.2 || width < 120 || height < 120) break;
-          currentDataUrl = getCompressed(width, height, quality);
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.88));
+        } else {
+          resolve(event.target?.result as string);
         }
-
-        resolve(currentDataUrl);
       };
       img.onerror = () => {
         // Safe fallback to uncompressed original if canvas rendering or image loading fails
