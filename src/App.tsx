@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, ArrowRight, Heart, Mail } from 'lucide-react';
+import { Sparkles, ArrowRight, Heart } from 'lucide-react';
 
 import Header from './components/Header';
 import CategoryCard from './components/CategoryCard';
@@ -8,7 +8,6 @@ import ProductGrid from './components/ProductGrid';
 import ProductDetailModal from './components/ProductDetailModal';
 import CartDrawer from './components/CartDrawer';
 import AboutModal from './components/AboutModal';
-import ContactModal from './components/ContactModal';
 import AdminPanel from './components/AdminPanel';
 
 import { 
@@ -32,7 +31,6 @@ interface HistoryState {
   productId: string | null;
   isCartOpen: boolean;
   isAboutOpen: boolean;
-  isContactOpen?: boolean;
   isAdminOpen: boolean;
 }
 
@@ -80,7 +78,6 @@ export default function App() {
   // Modal / Drawer control states
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
-  const [isContactOpen, setIsContactOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
 
@@ -153,7 +150,6 @@ export default function App() {
       setIsAdminOpen(Boolean(state.isAdminOpen));
       setIsCartOpen(Boolean(state.isCartOpen));
       setIsAboutOpen(Boolean(state.isAboutOpen));
-      setIsContactOpen(Boolean(state.isContactOpen));
       setActiveCategory(state.category || null);
 
       if (state.productId) {
@@ -170,7 +166,7 @@ export default function App() {
 
   // Step-by-step History Navigation Handlers
   const handleSelectCategory = (catId: Category | null) => {
-    if (catId === activeCategory && !selectedProduct && !isCartOpen && !isAboutOpen && !isContactOpen && !isAdminOpen) return;
+    if (catId === activeCategory && !selectedProduct && !isCartOpen && !isAboutOpen && !isAdminOpen) return;
 
     const url = catId ? `/category/${catId}` : '/';
     const newState: HistoryState = {
@@ -178,7 +174,6 @@ export default function App() {
       productId: null,
       isCartOpen: false,
       isAboutOpen: false,
-      isContactOpen: false,
       isAdminOpen: false
     };
 
@@ -187,7 +182,6 @@ export default function App() {
     setSelectedProduct(null);
     setIsCartOpen(false);
     setIsAboutOpen(false);
-    setIsContactOpen(false);
     setIsAdminOpen(false);
   };
 
@@ -198,7 +192,6 @@ export default function App() {
       productId: product.id,
       isCartOpen: false,
       isAboutOpen: false,
-      isContactOpen: false,
       isAdminOpen: false
     };
 
@@ -216,7 +209,6 @@ export default function App() {
         productId: null,
         isCartOpen: false,
         isAboutOpen: false,
-        isContactOpen: false,
         isAdminOpen: false
       };
       window.history.replaceState(newState, '', url);
@@ -230,7 +222,6 @@ export default function App() {
       productId: selectedProduct?.id || null,
       isCartOpen: true,
       isAboutOpen: false,
-      isContactOpen: false,
       isAdminOpen: false
     };
     window.history.pushState(newState, '');
@@ -251,7 +242,6 @@ export default function App() {
       productId: selectedProduct?.id || null,
       isCartOpen: false,
       isAboutOpen: true,
-      isContactOpen: false,
       isAdminOpen: false
     };
     window.history.pushState(newState, '');
@@ -266,34 +256,12 @@ export default function App() {
     }
   };
 
-  const handleOpenContact = () => {
-    const newState: HistoryState = {
-      category: activeCategory,
-      productId: selectedProduct?.id || null,
-      isCartOpen: false,
-      isAboutOpen: false,
-      isContactOpen: true,
-      isAdminOpen: false
-    };
-    window.history.pushState(newState, '');
-    setIsContactOpen(true);
-  };
-
-  const handleCloseContact = () => {
-    if (window.history.state?.isContactOpen) {
-      window.history.back();
-    } else {
-      setIsContactOpen(false);
-    }
-  };
-
   const handleOpenAdmin = () => {
     const newState: HistoryState = {
       category: null,
       productId: null,
       isCartOpen: false,
       isAboutOpen: false,
-      isContactOpen: false,
       isAdminOpen: true
     };
     window.history.pushState(newState, '', '/admin');
@@ -599,7 +567,6 @@ export default function App() {
         cartCount={totalCartItems}
         onOpenCart={handleOpenCart}
         onOpenAbout={handleOpenAbout}
-        onOpenContact={handleOpenContact}
         onResetCategory={() => handleSelectCategory(null)}
         activeCategory={activeCategory}
         categories={categories}
@@ -670,34 +637,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Atelier & Contact Showcase Card */}
-              <div className="mt-12 md:mt-16 bg-brand-sand/20 border border-brand-sand/50 rounded-sm p-6 sm:p-8 text-center max-w-2xl mx-auto flex flex-col items-center gap-4">
-                <span className="text-[10px] font-sans tracking-[0.25em] text-brand-terracotta uppercase font-semibold">
-                  {t('contact.subtitle')}
-                </span>
-                <h3 className="font-serif text-2xl sm:text-3xl font-light text-brand-charcoal">
-                  {t('contact.title')}
-                </h3>
-                <p className="text-xs font-sans font-light text-brand-warmgray leading-relaxed max-w-lg">
-                  {t('contact.text')}
-                </p>
-                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-                  <a
-                    href="mailto:didirengin@gmail.com"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-brand-charcoal hover:bg-brand-charcoal/90 text-brand-beige text-xs font-sans tracking-widest uppercase transition-colors rounded-[2px]"
-                  >
-                    <Mail size={13} />
-                    <span>didirengin@gmail.com</span>
-                  </a>
-                  <button
-                    onClick={handleOpenContact}
-                    className="inline-flex items-center gap-2 px-4 py-2 border border-brand-charcoal/30 hover:border-brand-charcoal text-brand-charcoal text-xs font-sans tracking-widest uppercase transition-colors rounded-[2px] bg-brand-beige"
-                  >
-                    <span>{t('contact.btn')}</span>
-                  </button>
-                </div>
-              </div>
-
             </motion.div>
           ) : (
             
@@ -759,29 +698,11 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 4. Atelier & Contact Brand Modal */}
-      <AnimatePresence>
-        {isContactOpen && (
-          <ContactModal
-            isOpen={isContactOpen}
-            onClose={handleCloseContact}
-          />
-        )}
-      </AnimatePresence>
-
       {/* Elegant Minimal Footer */}
       <footer className="border-t border-brand-sand/40 bg-brand-sand/10 py-10 mt-12">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6 text-xs font-sans tracking-widest text-brand-warmgray/90">
-          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-2">
             <span>{t('footer.istanbul')}</span>
-            <span className="hidden sm:inline text-brand-sand">·</span>
-            <a
-              href="mailto:didirengin@gmail.com"
-              className="hover:text-brand-charcoal text-brand-charcoal/80 lowercase tracking-normal flex items-center gap-1.5 transition-colors"
-            >
-              <Mail size={12} className="text-brand-terracotta" />
-              didirengin@gmail.com
-            </a>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-6">
             <button
@@ -790,13 +711,6 @@ export default function App() {
               className="hover:text-brand-charcoal transition-colors"
             >
               {t('nav.story')}
-            </button>
-            <button
-              id="footer-contact"
-              onClick={handleOpenContact}
-              className="hover:text-brand-charcoal transition-colors"
-            >
-              {t('footer.contact')}
             </button>
             <button
               id="footer-seramik"
@@ -827,7 +741,7 @@ export default function App() {
               {t('footer.admin')}
             </button>
           </div>
-          <div className="text-[10px] text-brand-warmgray/60 italic text-center md:text-right">
+          <div className="text-[10px] text-brand-warmgray/60 italic">
             {t('footer.motto')}
           </div>
         </div>

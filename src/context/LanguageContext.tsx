@@ -16,7 +16,6 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
   tr: {
     // Header
     'nav.story': 'Hikayemiz',
-    'nav.contact': 'İletişim',
     'nav.cart': 'SEPET',
     'nav.home': 'Didi Home',
     'nav.houteCouture': 'Haute Couture',
@@ -36,22 +35,8 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'phil.text': 'Didi Home; tüketmek yerine var olanı koruyarak sanatla yeniden ruh kazandırma felsefesiyle doğdu. Ev renovasyonundan seramiğe, özel tasarım kıyafetten dekorasyona kadar hayata geçen tüm orijinal tasarımlarımız, her gün yenisi eklenen yaşayan bir koleksiyonun parçasıdır.',
     'phil.more': 'Hikayemiz ve Felsefemiz Hakkında',
 
-    // Contact Section & Modal
-    'contact.title': 'Atölye & İletişim',
-    'contact.subtitle': 'BİZE ULAŞIN',
-    'contact.text': 'Özel tasarım siparişleri, koleksiyon parçaları veya atölye iş birlikleri hakkında bilgi almak için bize dilediğiniz zaman e-posta gönderebilirsiniz.',
-    'contact.email_label': 'İLETİŞİM E-POSTA ADRESİMİZ',
-    'contact.email': 'didirengin@gmail.com',
-    'contact.send_mail': 'E-posta Gönder',
-    'contact.copy_mail': 'Adresi Kopyala',
-    'contact.copied': 'Kopyalandı!',
-    'contact.location': 'İstanbul · Türkiye',
-    'contact.btn': 'İletişime Geç',
-
     // Footer
     'footer.istanbul': 'Didi Home © 2026 · İSTANBUL',
-    'footer.email': 'didirengin@gmail.com',
-    'footer.contact': 'İLETİŞİM',
     'footer.admin': 'YÖNETİCİ GİRİŞİ',
     'footer.story': 'HİKAYEMİZ',
     'footer.ceramic': 'SERAMİK',
@@ -138,7 +123,6 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
   en: {
     // Header
     'nav.story': 'Our Story',
-    'nav.contact': 'Contact',
     'nav.cart': 'CART',
     'nav.home': 'Didi Home',
     'nav.houteCouture': 'Haute Couture',
@@ -158,22 +142,8 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'phil.text': 'Didi Home was born from the philosophy of preserving what already exists and breathing new soul into it through art, rather than mere consumption. From home renovation and ceramics to bespoke fashion and decor, all our original designs form a vibrant, living collection growing every day.',
     'phil.more': 'About Our Story & Philosophy',
 
-    // Contact Section & Modal
-    'contact.title': 'Studio & Contact',
-    'contact.subtitle': 'REACH OUT TO US',
-    'contact.text': 'For custom piece inquiries, bespoke orders, or atelier collaborations, feel free to send us an email anytime.',
-    'contact.email_label': 'OUR CONTACT EMAIL',
-    'contact.email': 'didirengin@gmail.com',
-    'contact.send_mail': 'Send Email',
-    'contact.copy_mail': 'Copy Email',
-    'contact.copied': 'Copied!',
-    'contact.location': 'Istanbul · Turkey',
-    'contact.btn': 'Get in Touch',
-
     // Footer
     'footer.istanbul': 'Didi Home © 2026 · ISTANBUL',
-    'footer.email': 'didirengin@gmail.com',
-    'footer.contact': 'CONTACT',
     'footer.admin': 'ADMIN ACCESS',
     'footer.story': 'OUR STORY',
     'footer.ceramic': 'CERAMIC',
