@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingBag, BookOpen, Plus, Sparkles } from 'lucide-react';
+import { ShoppingBag, BookOpen, Mail, Plus, Sparkles } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 import { CategoryItem } from '../types';
@@ -8,6 +8,7 @@ interface HeaderProps {
   cartCount: number;
   onOpenCart: () => void;
   onOpenAbout: () => void;
+  onOpenContact?: () => void;
   onResetCategory: () => void;
   activeCategory: string | null;
   categories?: CategoryItem[];
@@ -17,6 +18,7 @@ export default function Header({
   cartCount,
   onOpenCart,
   onOpenAbout,
+  onOpenContact,
   onResetCategory,
   activeCategory,
   categories
@@ -51,6 +53,20 @@ export default function Header({
               <span className="absolute left-0 bottom-0 w-0 h-[1px] bg-brand-charcoal transition-all duration-300 group-hover:w-full"></span>
             </span>
           </button>
+
+          {onOpenContact && (
+            <button
+              id="nav-contact-btn"
+              onClick={onOpenContact}
+              className="group flex items-center gap-1.5 hover:text-brand-charcoal transition-colors duration-200"
+            >
+              <Mail size={14} className="text-brand-warmgray shrink-0" />
+              <span className="relative hidden sm:inline-block">
+                {t('nav.contact')}
+                <span className="absolute left-0 bottom-0 w-0 h-[1px] bg-brand-charcoal transition-all duration-300 group-hover:w-full"></span>
+              </span>
+            </button>
+          )}
         </div>
 
         {/* Center Logo */}
