@@ -84,7 +84,7 @@ export default function App() {
   // Initialize products & categories & covers & cart & history state on load
   useEffect(() => {
     // Clear stale local storage cache once to guarantee user gets fresh Supabase clean images
-    const CURRENT_VERSION = 'v2026_clean_corners_v3';
+    const CURRENT_VERSION = 'v2026_clean_corners_v4';
     try {
       if (localStorage.getItem('didi_cache_ver') !== CURRENT_VERSION) {
         localStorage.removeItem('didi_home_products');

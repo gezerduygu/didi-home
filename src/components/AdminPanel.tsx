@@ -2289,9 +2289,21 @@ export default function AdminPanel({
                       {/* Display Selected Images Grid */}
                       {formImages.length > 0 && (
                         <div className="space-y-2">
-                          <label className="block text-[9px] text-brand-warmgray font-semibold uppercase tracking-wider">
-                            {language === 'tr' ? 'SEÇİLEN GÖRSELLER (Sıralamak için sürükleyin, kapak yapmak için görsel üzerine tıklayın)' : 'SELECTED IMAGES (Drag to reorder, click an image to make it cover)'}
-                          </label>
+                          <div className="flex items-center justify-between">
+                            <label className="block text-[9px] text-brand-warmgray font-semibold uppercase tracking-wider">
+                              {language === 'tr' 
+                                ? `YÜKLÜ FOTOĞRAFLAR (${formImages.length} ADET) · İlk fotoğraf kapak olur` 
+                                : `LOADED PHOTOS (${formImages.length}) · First photo is cover`}
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => setFormImages([])}
+                              className="text-[10px] text-red-600 hover:text-red-700 underline font-medium tracking-wide flex items-center gap-1 cursor-pointer"
+                            >
+                              <Trash2 size={11} />
+                              <span>{language === 'tr' ? 'Tüm Eski Fotoğrafları Sil' : 'Clear All Photos'}</span>
+                            </button>
+                          </div>
                           <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                             {formImages.map((imgUrl, idx) => (
                               <motion.div
