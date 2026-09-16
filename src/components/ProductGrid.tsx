@@ -8,6 +8,10 @@ interface ProductGridProps {
   products: Product[];
   category: Category;
   categories?: CategoryItem[];
+  /** Veri buluttan gelirken true */
+  yukleniyor?: boolean;
+  /** Veri yüklenemediyse hata metni */
+  yuklemeHatasi?: string | null;
   onBack: () => void;
   onSelectProduct: (product: Product) => void;
 }
@@ -18,6 +22,8 @@ export default function ProductGrid({
   products,
   category,
   categories,
+  yukleniyor = false,
+  yuklemeHatasi = null,
   onBack,
   onSelectProduct
 }: ProductGridProps) {
@@ -203,7 +209,36 @@ export default function ProductGrid({
       </motion.div>
 
       {/* Products Grid */}
-      {filteredAndSortedProducts.length === 0 ? (
+      {yukleniyor && products.length === 0 ? (
+        /* Yükleniyor: mevcut kart düzeniyle aynı ölçüde sade iskelet kartlar */
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 sm:gap-8" aria-busy="true">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex flex-col animate-pulse">
+              <div className="aspect-[3/4] rounded-[1px] bg-brand-sand/50 border border-brand-sand/30" />
+              <div className="mt-4 h-2 w-16 bg-brand-sand/60 rounded-[1px]" />
+              <div className="mt-2 h-4 w-3/4 bg-brand-sand/60 rounded-[1px]" />
+              <div className="mt-2 h-3 w-20 bg-brand-sand/60 rounded-[1px]" />
+            </div>
+          ))}
+        </div>
+      ) : yuklemeHatasi && products.length === 0 ? (
+        /* Veri gelmedi: sahte ürün göstermek yerine dürüst bir mesaj (Altın kural 4) */
+        <motion.div
+          className="text-center py-20 bg-brand-sand/10 rounded-sm border border-dashed border-brand-sand/40"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          <p className="font-serif text-lg text-brand-warmgray italic">
+            {language === 'tr' ? 'Koleksiyon şu an yüklenemedi.' : 'The collection could not be loaded right now.'}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 text-xs font-sans tracking-widest text-brand-terracotta hover:underline uppercase"
+          >
+            {language === 'tr' ? 'Sayfayı Yenile' : 'Refresh Page'}
+          </button>
+        </motion.div>
+      ) : filteredAndSortedProducts.length === 0 ? (
         <motion.div
           className="text-center py-20 bg-brand-sand/10 rounded-sm border border-dashed border-brand-sand/40"
           initial={{ opacity: 0 }}
@@ -248,6 +283,15 @@ export default function ProductGrid({
                     className="w-full h-full object-cover object-center transition-all duration-[1000ms] group-hover:scale-105 filter saturate-[0.95] group-hover:saturate-100"
                   />
                   
+                  {/* Satıldı etiketi */}
+                  {product.status === 'satildi' && (
+                    <div className="absolute top-3 right-3 pointer-events-none z-10">
+                      <span className="bg-brand-beige/95 text-brand-charcoal text-[8.5px] font-sans tracking-[0.2em] uppercase px-2.5 py-1 rounded-[1px] shadow-sm font-semibold border border-brand-sand/60">
+                        {language === 'tr' ? 'Satıldı' : 'Sold'}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Subcategory Badge moved to bottom-left corner */}
                   {product.subcategory && (
                     <div className="absolute bottom-3 left-3 pointer-events-none z-10">

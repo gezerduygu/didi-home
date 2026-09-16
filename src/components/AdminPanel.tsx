@@ -29,10 +29,15 @@ import {
   GripVertical,
   ChevronUp,
   ChevronDown,
-  ArrowUpDown
+  ArrowUpDown,
+  Archive,
+  Download,
+  Undo2
 } from 'lucide-react';
-import { Product, Category, CoverSettings, CategoryItem } from '../types';
-import { DEFAULT_COVERS, DEFAULT_CATEGORIES } from '../data';
+import { Product, Category, CoverSettings, CategoryItem, ProductStatus } from '../types';
+import { DEFAULT_COVERS, listDeletedProducts, exportAll } from '../store';
+import { cikisYap } from '../auth';
+import AdminLogin from './AdminLogin';
 import { useLanguage } from '../context/LanguageContext';
 
 interface AdminPanelProps {
@@ -43,6 +48,13 @@ interface AdminPanelProps {
   onUpdateProduct: (product: Product) => void;
   onDeleteProduct: (id: string) => void;
   onReorderProducts?: (products: Product[]) => void;
+  onRestoreProduct: (product: Product) => Promise<unknown> | void;
+  /** Oturum yönetici e-postasına mı ait? (Asıl koruma veritabanı RLS kurallarıdır.) */
+  isAdmin: boolean;
+  oturumEposta: string | null;
+  /** E-postadaki şifre belirleme bağlantısıyla gelindiyse true */
+  sifreYenilemeModu: boolean;
+  onSifreYenilendi: () => void;
   onAddCategory: (category: CategoryItem) => void;
   onUpdateCategory: (category: CategoryItem) => void;
   onDeleteCategory: (categoryId: string) => void;
@@ -244,6 +256,11 @@ export default function AdminPanel({
   onUpdateProduct,
   onDeleteProduct,
   onReorderProducts,
+  onRestoreProduct,
+  isAdmin,
+  oturumEposta,
+  sifreYenilemeModu,
+  onSifreYenilendi,
   onAddCategory,
   onUpdateCategory,
   onDeleteCategory,
@@ -253,17 +270,14 @@ export default function AdminPanel({
   const { language, t } = useLanguage();
   const [draggedProductId, setDraggedProductId] = useState<string | null>(null);
   const [dragOverProductId, setDragOverProductId] = useState<string | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('didi_admin_auth') === 'true';
-    }
-    return false;
-  });
-  const [password, setPassword] = useState('');
-  const [authError, setAuthError] = useState('');
+  // Çöp kutusu ve yedekleme
+  const [silinenler, setSilinenler] = useState<Product[]>([]);
+  const [copYukleniyor, setCopYukleniyor] = useState(false);
+  const [geriGetirilenId, setGeriGetirilenId] = useState<string | null>(null);
+  const [yedekIndiriliyor, setYedekIndiriliyor] = useState(false);
   
   // Navigation Tabs state
-  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'covers'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'covers' | 'trash'>('products');
 
   // Cover Photos management states
   const [coverUrlInputs, setCoverUrlInputs] = useState<Record<keyof CoverSettings, string>>({
@@ -310,6 +324,7 @@ export default function AdminPanel({
   const [formMaterial, setFormMaterial] = useState('');
   const [formDimensions, setFormDimensions] = useState('');
   const [formIsSecondHand, setFormIsSecondHand] = useState(false);
+  const [formStatus, setFormStatus] = useState<ProductStatus>('yayinda');
   const [formImages, setFormImages] = useState<string[]>([]);
   const [formPresetIndex, setFormPresetIndex] = useState<number | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -335,31 +350,53 @@ export default function AdminPanel({
       .replace(/^-+|-+$/g, '');
   };
 
-  // Password Login Handler
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password === 'didi' || password === 'didi123') {
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('didi_admin_auth', 'true');
-      }
-      setIsAuthenticated(true);
-      setAuthError('');
-    } else {
-      setAuthError(
-        language === 'tr'
-          ? 'Hatalı şifre. Lütfen tekrar deneyin.'
-          : 'Incorrect password. Please try again.'
-      );
+  // Güvenli çıkış (Supabase oturumu kapatılır)
+  const handleLogout = () => {
+    cikisYap();
+  };
+
+  // --- ÇÖP KUTUSU ---
+  const copKutusunuYukle = async () => {
+    setCopYukleniyor(true);
+    try {
+      setSilinenler(await listDeletedProducts());
+    } catch (e) {
+      console.error(e);
+      alert(language === 'tr' ? 'Çöp kutusu yüklenemedi. Sayfayı yenileyip tekrar deneyin.' : 'Could not load the trash. Please refresh and try again.');
+    } finally {
+      setCopYukleniyor(false);
     }
   };
 
-  // Secure Logout Handler
-  const handleLogout = () => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('didi_admin_auth');
+  const handleRestore = async (urun: Product) => {
+    setGeriGetirilenId(urun.id);
+    try {
+      await onRestoreProduct(urun);
+      await copKutusunuYukle();
+    } finally {
+      setGeriGetirilenId(null);
     }
-    setIsAuthenticated(false);
-    setPassword('');
+  };
+
+  // --- YEDEK İNDİR ---
+  // Tüm katalog tek bir JSON dosyası olarak bilgisayara iner.
+  const yedekIndir = async () => {
+    setYedekIndiriliyor(true);
+    try {
+      const veri = await exportAll();
+      const blob = new Blob([JSON.stringify(veri, null, 2)], { type: 'application/json' });
+      const adres = URL.createObjectURL(blob);
+      const baglanti = document.createElement('a');
+      baglanti.href = adres;
+      baglanti.download = `didi-home-yedek-${new Date().toISOString().slice(0, 10)}.json`;
+      baglanti.click();
+      URL.revokeObjectURL(adres);
+    } catch (e) {
+      console.error(e);
+      alert(language === 'tr' ? 'Yedek oluşturulamadı. Lütfen tekrar deneyin.' : 'Backup could not be created. Please try again.');
+    } finally {
+      setYedekIndiriliyor(false);
+    }
   };
 
   // --- CATEGORY ACTIONS ---
@@ -535,6 +572,7 @@ export default function AdminPanel({
     setFormMaterial('');
     setFormDimensions('');
     setFormIsSecondHand(false);
+    setFormStatus('yayinda');
     const presets = PRESET_IMAGES[defaultCat] || PRESET_IMAGES['seramik'];
     setFormImages([presets[0]?.url || '/images/ceramic-cover.jpg']);
     setFormPresetIndex(0);
@@ -557,6 +595,7 @@ export default function AdminPanel({
     setFormMaterial(product.material || '');
     setFormDimensions(product.dimensions || '');
     setFormIsSecondHand(product.isSecondHand ?? false);
+    setFormStatus(product.status ?? 'yayinda');
     
     const initialImages = product.images && product.images.length > 0 ? product.images : [product.image];
     setFormImages(initialImages);
@@ -718,6 +757,7 @@ export default function AdminPanel({
         material: formMaterial || undefined,
         dimensions: formDimensions || undefined,
         isSecondHand: formIsSecondHand,
+        status: formStatus,
       };
       onUpdateProduct(updated);
     } else {
@@ -735,6 +775,7 @@ export default function AdminPanel({
         material: formMaterial || undefined,
         dimensions: formDimensions || undefined,
         isSecondHand: formIsSecondHand,
+        status: formStatus,
         createdAt: new Date().toISOString()
       };
       onAddProduct(created);
@@ -746,8 +787,8 @@ export default function AdminPanel({
   // Delete product with customized alert
   const handleDelete = (product: Product) => {
     const message = language === 'tr'
-      ? `"${product.title}" isimli ürünü kalıcı olarak silmek istediğinizden emin misiniz?`
-      : `Are you sure you want to permanently delete the product "${product.title}"?`;
+      ? `"${product.title}" çöp kutusuna taşınsın mı?\n\nÜrün sitede artık görünmez. Yönetim panelindeki Çöp Kutusu sekmesinden istediğiniz zaman geri getirebilirsiniz.`
+      : `Move "${product.title}" to the trash?\n\nIt will no longer be visible on the store. You can restore it any time from the Trash tab.`;
     if (confirm(message)) {
       onDeleteProduct(product.id);
     }
@@ -829,67 +870,15 @@ export default function AdminPanel({
     ])
   ).length;
 
-  if (!isAuthenticated) {
+  // Giriş yapılmamışsa, yönetici değilse ya da şifre belirleme bağlantısıyla gelindiyse
+  if (sifreYenilemeModu || !isAdmin) {
     return (
-      <div className="min-h-[85vh] flex items-center justify-center p-6 font-sans">
-        <motion.div 
-          className="w-full max-w-md bg-brand-beige border border-brand-sand/50 rounded-sm p-8 shadow-xl text-center"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="w-12 h-12 bg-brand-sand/30 rounded-full flex items-center justify-center mx-auto mb-4 text-brand-terracotta">
-            <Lock size={20} />
-          </div>
-          <span className="text-[10px] font-sans tracking-[0.3em] text-brand-terracotta uppercase block mb-1">Didi Home</span>
-          <h2 className="font-serif text-2xl font-light text-brand-charcoal mb-6">
-            {language === 'tr' ? 'Yönetici Girişi' : 'Admin Panel Login'}
-          </h2>
-          
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="text-left">
-              <label className="block text-[10px] font-medium text-brand-warmgray uppercase tracking-widest mb-1.5">
-                {language === 'tr' ? 'ŞİFRE' : 'PASSWORD'}
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={language === 'tr' ? 'Giriş şifresini girin...' : 'Enter admin password...'}
-                className="w-full bg-transparent border border-brand-sand focus:border-brand-charcoal px-3 py-2.5 rounded-[2px] text-sm text-brand-charcoal outline-none transition-all"
-                required
-                autoFocus
-              />
-              <span className="text-[10px] text-brand-warmgray/60 block mt-1.5 italic">
-                {language === 'tr'
-                  ? 'Bu alan yalnızca site yöneticisi içindir.'
-                  : 'This area is for the site administrator only.'}
-              </span>
-            </div>
-
-            {authError && (
-              <p className="text-xs text-brand-terracotta font-medium tracking-wide">{authError}</p>
-            )}
-
-            <div className="pt-4 flex gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 py-2.5 border border-brand-sand hover:border-brand-charcoal text-brand-charcoal text-xs tracking-widest uppercase transition-colors rounded-[2px]"
-              >
-                {language === 'tr' ? 'MAĞAZAYA DÖN' : 'RETURN TO SHOP'}
-              </button>
-              <button
-                type="submit"
-                className="flex-1 py-2.5 bg-brand-charcoal hover:bg-brand-charcoal/90 text-brand-beige text-xs tracking-widest uppercase transition-colors rounded-[2px] flex items-center justify-center gap-1.5"
-              >
-                <LogIn size={13} />
-                {language === 'tr' ? 'GİRİŞ YAP' : 'LOGIN'}
-              </button>
-            </div>
-          </form>
-        </motion.div>
-      </div>
+      <AdminLogin
+        oturumEposta={oturumEposta}
+        sifreYenilemeModu={sifreYenilemeModu}
+        onSifreYenilendi={onSifreYenilendi}
+        onClose={onClose}
+      />
     );
   }
 
@@ -913,21 +902,32 @@ export default function AdminPanel({
             </h1>
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 text-xs font-sans tracking-widest text-brand-warmgray hover:text-brand-terracotta transition-colors uppercase"
-            title={language === 'tr' ? 'Güvenli Çıkış' : 'Logout Securely'}
-          >
-            <LogOut size={13} />
-            {language === 'tr' ? 'ÇIKIŞ' : 'LOGOUT'}
-          </button>
+          <div className="flex items-center gap-4 sm:gap-6">
+            <button
+              onClick={yedekIndir}
+              disabled={yedekIndiriliyor}
+              className="flex items-center gap-1.5 text-xs font-sans tracking-widest text-brand-warmgray hover:text-brand-charcoal transition-colors uppercase disabled:opacity-50"
+              title={language === 'tr' ? 'Tüm kataloğu bilgisayarınıza JSON dosyası olarak indirin' : 'Download the whole catalog as a JSON file'}
+            >
+              {yedekIndiriliyor ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+              <span className="hidden sm:inline">{language === 'tr' ? 'YEDEK İNDİR' : 'BACKUP'}</span>
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 text-xs font-sans tracking-widest text-brand-warmgray hover:text-brand-terracotta transition-colors uppercase"
+              title={language === 'tr' ? 'Güvenli Çıkış' : 'Logout Securely'}
+            >
+              <LogOut size={13} />
+              {language === 'tr' ? 'ÇIKIŞ' : 'LOGOUT'}
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         
         {/* Navigation Tabs Bar */}
-        <div className="flex border-b border-brand-sand/50 mb-8 gap-3 sm:gap-6">
+        <div className="flex border-b border-brand-sand/50 mb-8 gap-3 sm:gap-6 overflow-x-auto">
           <button
             onClick={() => setActiveTab('products')}
             className={`pb-3 px-3 sm:px-5 font-sans text-xs font-medium tracking-widest uppercase transition-all flex items-center gap-2 border-b-2 ${
@@ -971,6 +971,21 @@ export default function AdminPanel({
             <span className="text-[10px] bg-brand-terracotta text-white font-medium px-2 py-0.5 rounded-full shadow-xs">
               {categories.length} {language === 'tr' ? 'VİTRİN' : 'SHOWCASES'}
             </span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('trash');
+              copKutusunuYukle();
+            }}
+            className={`pb-3 px-3 sm:px-5 font-sans text-xs font-medium tracking-widest uppercase transition-all flex items-center gap-2 border-b-2 whitespace-nowrap ${
+              activeTab === 'trash'
+                ? 'border-brand-terracotta text-brand-charcoal font-semibold'
+                : 'border-transparent text-brand-warmgray hover:text-brand-charcoal'
+            }`}
+          >
+            <Archive size={15} />
+            <span>{language === 'tr' ? 'Çöp Kutusu' : 'Trash'}</span>
           </button>
         </div>
 
@@ -1210,7 +1225,19 @@ export default function AdminPanel({
 
                             {/* Product Title */}
                             <td className="py-3 px-5">
-                              <div className="font-serif text-sm font-medium text-brand-charcoal">{prod.title}</div>
+                              <div className="font-serif text-sm font-medium text-brand-charcoal flex items-center gap-2 flex-wrap">
+                                <span>{prod.title}</span>
+                                {prod.status === 'taslak' && (
+                                  <span className="text-[9px] font-sans tracking-widest uppercase bg-brand-sand/60 text-brand-warmgray px-1.5 py-0.5 rounded-[1px]">
+                                    {language === 'tr' ? 'Taslak' : 'Draft'}
+                                  </span>
+                                )}
+                                {prod.status === 'satildi' && (
+                                  <span className="text-[9px] font-sans tracking-widest uppercase bg-brand-terracotta/15 text-brand-terracotta px-1.5 py-0.5 rounded-[1px]">
+                                    {language === 'tr' ? 'Satıldı' : 'Sold'}
+                                  </span>
+                                )}
+                              </div>
                               <div className="text-[10px] text-brand-warmgray max-w-[280px] truncate italic" title={prod.story}>
                                 {prod.story}
                               </div>
@@ -1430,6 +1457,69 @@ export default function AdminPanel({
         )}
 
         {/* TAB 3: KAPAK FOTOĞRAFLARI YÖNETİMİ */}
+        {/* TAB 4: ÇÖP KUTUSU */}
+        {activeTab === 'trash' && (
+          <div className="space-y-6">
+            <div className="bg-brand-sand/15 border border-brand-sand/40 p-6 rounded-sm">
+              <div className="flex items-center gap-2 text-brand-terracotta text-[10px] font-sans tracking-[0.25em] uppercase font-bold mb-1">
+                <Archive size={13} />
+                <span>{language === 'tr' ? 'ÇÖP KUTUSU' : 'TRASH'}</span>
+              </div>
+              <h2 className="font-serif text-2xl font-light text-brand-charcoal">
+                {language === 'tr' ? 'Silinen Ürünler' : 'Deleted Products'}
+              </h2>
+              <p className="text-xs text-brand-warmgray mt-1 max-w-2xl font-light">
+                {language === 'tr'
+                  ? 'Sildiğiniz ürünler kalıcı olarak yok olmaz, burada saklanır. Geri getirdiğiniz ürün tüm bilgileri ve fotoğraflarıyla eski yerine döner.'
+                  : 'Deleted products are not permanently removed; they are kept here. A restored product returns with all its details and photos.'}
+              </p>
+            </div>
+
+            <div className="bg-brand-beige border border-brand-sand/40 rounded-sm overflow-hidden shadow-sm">
+              {copYukleniyor ? (
+                <div className="py-16 flex items-center justify-center gap-2 text-xs text-brand-warmgray">
+                  <Loader2 size={16} className="animate-spin text-brand-terracotta" />
+                  {language === 'tr' ? 'Yükleniyor...' : 'Loading...'}
+                </div>
+              ) : silinenler.length === 0 ? (
+                <p className="text-center py-16 text-sm text-brand-warmgray/80 italic">
+                  {language === 'tr' ? 'Çöp kutusu boş.' : 'The trash is empty.'}
+                </p>
+              ) : (
+                <ul className="divide-y divide-brand-sand/20">
+                  {silinenler.map((urun) => (
+                    <li key={urun.id} className="flex items-center gap-4 px-4 py-3">
+                      <div className="w-9 h-12 bg-brand-sand/10 border border-brand-sand/30 rounded-[2px] overflow-hidden shrink-0">
+                        <img src={urun.image} alt={urun.title} className="w-full h-full object-cover opacity-70" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-serif text-sm font-medium text-brand-charcoal truncate">{urun.title}</div>
+                        <div className="text-[10px] text-brand-warmgray">
+                          {language === 'tr' ? 'Silinme' : 'Deleted'}:{' '}
+                          {urun.deletedAt
+                            ? new Date(urun.deletedAt).toLocaleString(language === 'tr' ? 'tr-TR' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' })
+                            : '-'}
+                          {' · '}
+                          {urun.price.toLocaleString(language === 'tr' ? 'tr-TR' : 'en-US')} {t('cart.currency')}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRestore(urun)}
+                        disabled={geriGetirilenId === urun.id}
+                        className="py-2 px-3 border border-brand-sand hover:border-brand-charcoal text-brand-charcoal text-xs tracking-widest uppercase transition-colors rounded-[2px] flex items-center gap-1.5 font-medium shrink-0 disabled:opacity-50"
+                      >
+                        {geriGetirilenId === urun.id ? <Loader2 size={13} className="animate-spin" /> : <Undo2 size={13} />}
+                        <span>{language === 'tr' ? 'GERİ GETİR' : 'RESTORE'}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
+
         {activeTab === 'covers' && (
           <div className="space-y-8">
             {/* Covers Header & Quick Reset */}
@@ -2474,6 +2564,38 @@ export default function AdminPanel({
                     className="w-full bg-transparent border border-brand-sand focus:border-brand-charcoal px-3 py-2 rounded-[2px] text-sm text-brand-charcoal outline-none resize-none transition-all"
                     placeholder={language === 'tr' ? 'Üretim aşaması, dokusu veya geçmişini anlatan derinlikli hikayesi...' : 'A soulful story describing the crafting process, texture, or history...'}
                   />
+                </div>
+
+                {/* Yayın durumu */}
+                <div>
+                  <label className="block text-brand-charcoal/80 font-medium tracking-wide mb-1.5 uppercase">
+                    {language === 'tr' ? 'YAYIN DURUMU' : 'STATUS'}
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { deger: 'yayinda', tr: 'Yayında', en: 'Published', notTr: 'Sitede görünür', notEn: 'Visible on store' },
+                      { deger: 'taslak', tr: 'Taslak', en: 'Draft', notTr: 'Sitede görünmez', notEn: 'Hidden from store' },
+                      { deger: 'satildi', tr: 'Satıldı', en: 'Sold', notTr: 'Görünür, satın alınamaz', notEn: 'Visible, not purchasable' }
+                    ] as const).map((secenek) => (
+                      <button
+                        key={secenek.deger}
+                        type="button"
+                        onClick={() => setFormStatus(secenek.deger)}
+                        className={`py-2 px-2 border rounded-[2px] transition-all text-center ${
+                          formStatus === secenek.deger
+                            ? 'bg-brand-charcoal border-brand-charcoal text-brand-beige'
+                            : 'border-brand-sand hover:border-brand-charcoal text-brand-charcoal/70'
+                        }`}
+                      >
+                        <span className="block tracking-wider uppercase font-semibold">
+                          {language === 'tr' ? secenek.tr : secenek.en}
+                        </span>
+                        <span className="block text-[9px] mt-0.5 opacity-75 font-light">
+                          {language === 'tr' ? secenek.notTr : secenek.notEn}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Product Specifications */}

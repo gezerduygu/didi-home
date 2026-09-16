@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, ArrowRight, Heart } from 'lucide-react';
 
@@ -10,17 +10,24 @@ import CartDrawer from './components/CartDrawer';
 import AboutModal from './components/AboutModal';
 import AdminPanel from './components/AdminPanel';
 
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from './supabase';
+import { yoneticiMi } from './auth';
 import {
-  getStoredProducts,
-  saveProducts,
-  fetchProductsFromServer,
-  getStoredCovers,
-  saveCovers,
-  fetchCoversFromServer,
-  getStoredCategories,
-  saveCategories,
-  fetchCategoriesFromServer
-} from './data';
+  DEFAULT_COVERS,
+  StoreError,
+  listVisibleProducts,
+  listAllProducts,
+  listCategories,
+  getCovers,
+  saveProduct,
+  softDeleteProduct,
+  restoreProduct,
+  saveProductOrder,
+  saveCategory,
+  softDeleteCategory,
+  saveCovers
+} from './store';
 import { Product, CartItem, Category, CoverSettings, CategoryItem } from './types';
 import { useLanguage } from './context/LanguageContext';
 
@@ -38,6 +45,28 @@ interface HistoryState {
    */
   pushed?: boolean;
 }
+
+/**
+ * Yalnızca küçük veriler (kategoriler, kapak ayarları) önbelleğe alınır; sonraki
+ * ziyarette ana sayfa kartları anında çizilsin diye. Ürünler bilerek önbelleğe
+ * ALINMAZ: eskiden kota dolunca sahte ürünlerin görünmesine yol açıyordu.
+ */
+const onbellektenOku = <T,>(anahtar: string, varsayilan: T): T => {
+  try {
+    const v = localStorage.getItem(anahtar);
+    return v ? (JSON.parse(v) as T) : varsayilan;
+  } catch {
+    return varsayilan;
+  }
+};
+
+const onbellegeYaz = (anahtar: string, deger: unknown) => {
+  try {
+    localStorage.setItem(anahtar, JSON.stringify(deger));
+  } catch {
+    /* kota dolu olabilir; önbellek şart değil */
+  }
+};
 
 const parseUrlState = (): HistoryState => {
   if (typeof window === 'undefined') {
@@ -76,8 +105,8 @@ export default function App() {
   const [products, setProducts] = useState<Product[]>([]);
   // Geri tuşu işleyicisi için ürünlerin güncel kopyası (kapanış değişkeni tuzağını önler)
   const productsRef = useRef<Product[]>([]);
-  const [categories, setCategories] = useState<CategoryItem[]>(getStoredCategories());
-  const [covers, setCovers] = useState<CoverSettings>(getStoredCovers());
+  const [categories, setCategories] = useState<CategoryItem[]>(() => onbellektenOku('didi_cache_categories', []));
+  const [covers, setCovers] = useState<CoverSettings>(() => ({ ...DEFAULT_COVERS, ...onbellektenOku('didi_cache_covers', {}) }));
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -88,66 +117,34 @@ export default function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
 
+  // Veri yükleme durumu
+  const [yukleniyor, setYukleniyor] = useState(true);
+  const [yuklemeHatasi, setYuklemeHatasi] = useState<string | null>(null);
+
+  // Yönetici oturumu (Supabase Auth)
+  const [oturum, setOturum] = useState<Session | null>(null);
+  const [sifreYenilemeModu, setSifreYenilemeModu] = useState(false);
+  const isAdmin = yoneticiMi(oturum);
+
   // Initialize products & categories & covers & cart & history state on load
   useEffect(() => {
-    // Clear stale local storage cache once to guarantee user gets fresh Supabase clean images
-    const CURRENT_VERSION = 'v2026_clean_corners_v4';
+    // Eski sürümden kalan büyük önbellek anahtarlarını temizle (tarayıcı kotası dolmasın)
     try {
-      if (localStorage.getItem('didi_cache_ver') !== CURRENT_VERSION) {
-        localStorage.removeItem('didi_home_products');
-        localStorage.removeItem('didi_products');
-        localStorage.removeItem('didi_home_covers');
-        localStorage.removeItem('didi_covers');
-        localStorage.setItem('didi_cache_ver', CURRENT_VERSION);
-      }
-    } catch (e) {
-      console.warn('Cache ver check error:', e);
+      [
+        'didi_home_products', 'didi_products', 'didi_home_covers', 'didi_covers',
+        'didi_home_categories', 'didi_categories', 'didi_cache_ver'
+      ].forEach((k) => localStorage.removeItem(k));
+    } catch {
+      /* önemli değil */
     }
-
-    const initialProducts = getStoredProducts();
-    setProducts(initialProducts);
-    setCategories(getStoredCategories());
-    setCovers(getStoredCovers());
 
     const initial = parseUrlState();
     setActiveCategory(initial.category);
     setIsAdminOpen(initial.isAdminOpen);
-    if (initial.productId) {
-      const found = initialProducts.find(p => p.id === initial.productId);
-      if (found) setSelectedProduct(found);
-    }
 
     // Set initial replaceState so the current history entry has a full state object
     const currentUrl = window.location.pathname + window.location.search;
     window.history.replaceState(initial, '', currentUrl);
-
-    // Fetch disk file backed products from server
-    fetchProductsFromServer().then(prods => {
-      if (prods && prods.length > 0) {
-        setProducts(prods);
-        // Veri geç gelebilir. Kullanıcı bu arada ürünü kapattıysa ya da başka
-        // sayfaya geçtiyse pencereyi yeniden AÇMA; yalnızca hâlâ o üründeyse güncelle.
-        const halaAyniUrunde = window.history.state?.productId === initial.productId;
-        if (initial.productId && halaAyniUrunde) {
-          const found = prods.find(p => p.id === initial.productId);
-          if (found) setSelectedProduct(found);
-        }
-      }
-    });
-
-    // Fetch disk file backed categories from server
-    fetchCategoriesFromServer().then(cats => {
-      if (cats && cats.length > 0) {
-        setCategories(cats);
-      }
-    });
-
-    // Fetch disk file backed covers from server
-    fetchCoversFromServer().then(covs => {
-      if (covs) {
-        setCovers(covs);
-      }
-    });
 
     const storedCart = localStorage.getItem('didi_home_cart');
     if (storedCart) {
@@ -158,6 +155,55 @@ export default function App() {
       }
     }
   }, []);
+
+  // --- Yönetici oturumu ---
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setOturum(data.session));
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange((olay, session) => {
+      setOturum(session);
+      // E-postadaki "şifre belirle" bağlantısıyla gelindi
+      if (olay === 'PASSWORD_RECOVERY') setSifreYenilemeModu(true);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // --- Veri yükleme ---
+  // Yönetici girişi yapılınca taslaklar dahil tüm ürünler yeniden yüklenir.
+  // Veri gelmezse örnek katalog GÖSTERİLMEZ; hata mesajı gösterilir (Altın kural 4).
+  const veriyiYukle = useCallback(async () => {
+    try {
+      const [urunler, kategoriler, kapaklar] = await Promise.all([
+        isAdmin ? listAllProducts() : listVisibleProducts(),
+        listCategories(),
+        getCovers()
+      ]);
+      setProducts(urunler);
+      setCategories(kategoriler);
+      setCovers(kapaklar);
+      setYuklemeHatasi(null);
+      onbellegeYaz('didi_cache_categories', kategoriler);
+      onbellegeYaz('didi_cache_covers', kapaklar);
+
+      // Doğrudan ürün bağlantısıyla gelindiyse ve kullanıcı HÂLÂ o üründeyse aç.
+      // (Veri geç gelirse kullanıcının kapattığı pencere yeniden açılmasın.)
+      const acikUrunId = window.history.state?.productId;
+      if (acikUrunId) {
+        const bulunan = urunler.find((u) => u.id === acikUrunId);
+        if (bulunan) setSelectedProduct(bulunan);
+      }
+    } catch (e) {
+      console.error('[Veri] Yüklenemedi:', e);
+      setYuklemeHatasi(e instanceof Error ? e.message : String(e));
+    } finally {
+      setYukleniyor(false);
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    veriyiYukle();
+  }, [veriyiYukle]);
 
   // Listen for browser / phone hardware / gesture back & forward buttons (Step-by-step back)
   useEffect(() => {
@@ -309,7 +355,7 @@ export default function App() {
   // Sync cart to local storage
   const saveCart = (newCart: CartItem[]) => {
     setCart(newCart);
-    localStorage.setItem('didi_home_cart', JSON.stringify(newCart));
+    onbellegeYaz('didi_home_cart', newCart);
   };
 
   // Notification trigger
@@ -323,132 +369,136 @@ export default function App() {
   // --- ACTIONS ---
 
   // --- KAYIT YARDIMCISI ---
-  // Tüm yazma işlemleri buradan geçer. Kayıt reddedilirse (ör. bulut verisi
-  // henüz yüklenmemişse) ekrandaki liste DEĞİŞTİRİLMEZ ve kullanıcı gerçek
-  // durumu görür. Bkz. PROJECT.md → Altın kurallar.
-  const persist = (save: () => void, apply: () => void, successMessage: string): boolean => {
+  // Tüm yazma işlemleri buradan geçer ve veritabanının yanıtı BEKLENİR.
+  // Başarı mesajı yalnızca kayıt gerçekten tamamlanınca gösterilir (Altın kural 7).
+  // Hata olursa ekrandaki liste değişmez.
+  const kaydet = async (islem: () => Promise<void>, basariMesaji: string): Promise<boolean> => {
     try {
-      save();
-      apply();
-      triggerNotification(successMessage);
+      await islem();
+      triggerNotification(basariMesaji);
       return true;
     } catch (err) {
       console.error('[Kayıt] İşlem tamamlanamadı:', err);
+      const ayrinti = err instanceof StoreError ? err.message : '';
       triggerNotification(
         language === 'tr'
-          ? 'Kaydedilemedi. Veriler henüz yüklenmemiş olabilir; sayfayı yenileyip tekrar deneyin. Değişikliğiniz uygulanmadı.'
-          : 'Could not save. Data may not be loaded yet; please refresh and try again. Your change was not applied.'
+          ? `Kaydedilemedi, değişikliğiniz uygulanmadı. ${ayrinti}`
+          : `Could not save; your change was not applied. ${ayrinti}`
       );
       return false;
     }
   };
 
-  // Add Custom Product (Admin)
-  const handleAddProduct = (newProduct: Product) => {
-    const updatedProducts = [newProduct, ...products];
-    persist(
-      () => saveProducts(updatedProducts),
-      () => setProducts(updatedProducts),
-      language === 'tr'
-        ? `"${newProduct.title}" başarıyla atölyeye eklendi ve yayına alındı!`
-        : `"${newProduct.title}" successfully added to the workshop and published!`
-    );
-  };
+  const urunKayitMesaji = (u: Product) =>
+    language === 'tr'
+      ? u.status === 'taslak'
+        ? `"${u.title}" taslak olarak kaydedildi (sitede görünmez).`
+        : `"${u.title}" kaydedildi ve yayında.`
+      : u.status === 'taslak'
+        ? `"${u.title}" saved as draft (hidden from the store).`
+        : `"${u.title}" saved and published.`;
 
-  // Update Custom Product (Admin)
-  const handleUpdateProduct = (updatedProduct: Product) => {
-    const updatedProducts = products.map(p => p.id === updatedProduct.id ? updatedProduct : p);
-    persist(
-      () => saveProducts(updatedProducts),
-      () => setProducts(updatedProducts),
-      language === 'tr'
-        ? `"${updatedProduct.title}" başarıyla güncellendi!`
-        : `"${updatedProduct.title}" successfully updated!`
-    );
-  };
+  // Add Product (Admin) — yeni ürün listenin en başına gelir
+  const handleAddProduct = (newProduct: Product) =>
+    kaydet(async () => {
+      const enUst = products.reduce((min, u) => Math.min(min, u.sortOrder ?? 0), 0);
+      const kayitli = await saveProduct({ ...newProduct, sortOrder: enUst - 1 });
+      setProducts((onceki) => [kayitli, ...onceki]);
+    }, urunKayitMesaji(newProduct));
 
-  // Reorder Products (Admin Drag and Drop)
+  // Update Product (Admin) — yalnızca bu ürünün satırı yazılır
+  const handleUpdateProduct = (updatedProduct: Product) =>
+    kaydet(async () => {
+      const kayitli = await saveProduct(updatedProduct);
+      setProducts((onceki) => onceki.map((u) => (u.id === kayitli.id ? kayitli : u)));
+    }, urunKayitMesaji(updatedProduct));
+
+  // Reorder Products (Admin) — ekranda anında değişir, kayıt başarısız olursa geri alınır
   const handleReorderProducts = (reorderedProducts: Product[]) => {
-    persist(
-      () => saveProducts(reorderedProducts),
-      () => setProducts(reorderedProducts),
+    const oncekiSira = products;
+    const yeniSira = reorderedProducts.map((u, i) => ({ ...u, sortOrder: i }));
+    setProducts(yeniSira);
+    kaydet(
+      () => saveProductOrder(yeniSira.map((u) => u.id)),
       language === 'tr' ? 'Sıralama kaydedildi.' : 'Order saved.'
-    );
+    ).then((basarili) => {
+      if (!basarili) setProducts(oncekiSira);
+    });
   };
 
-  // Delete Product (Admin)
+  // Delete Product (Admin) — kalıcı silmez, çöp kutusuna taşır
   const handleDeleteProduct = (id: string) => {
-    const target = products.find(p => p.id === id);
-    const updatedProducts = products.filter(p => p.id !== id);
-    persist(
-      () => saveProducts(updatedProducts),
-      () => setProducts(updatedProducts),
-      language === 'tr'
-        ? `"${target?.title || id}" silindi.`
-        : `"${target?.title || id}" deleted.`
-    );
+    const hedef = products.find((u) => u.id === id);
+    return kaydet(async () => {
+      await softDeleteProduct(id);
+      setProducts((onceki) => onceki.filter((u) => u.id !== id));
+    }, language === 'tr'
+      ? `"${hedef?.title || id}" çöp kutusuna taşındı. Çöp Kutusu sekmesinden geri getirebilirsiniz.`
+      : `"${hedef?.title || id}" moved to trash. You can restore it from the Trash tab.`);
   };
+
+  // Restore Product (Admin)
+  const handleRestoreProduct = (urun: Product) =>
+    kaydet(async () => {
+      await restoreProduct(urun.id);
+      setProducts((onceki) =>
+        [...onceki.filter((u) => u.id !== urun.id), { ...urun, deletedAt: null }].sort(
+          (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+        )
+      );
+    }, language === 'tr' ? `"${urun.title}" geri getirildi.` : `"${urun.title}" restored.`);
 
   // Add New Category (Admin)
-  const handleAddCategory = (newCat: CategoryItem) => {
-    const updated = [...categories, newCat];
-    persist(
-      () => saveCategories(updated),
-      () => setCategories(updated),
-      language === 'tr'
-        ? `"${newCat.title}" kategorisi başarıyla oluşturuldu!`
-        : `Category "${newCat.title}" successfully created!`
-    );
-  };
+  const handleAddCategory = (newCat: CategoryItem) =>
+    kaydet(async () => {
+      const kayitli = await saveCategory(newCat, categories.length);
+      setCategories((onceki) => [...onceki, kayitli]);
+    }, language === 'tr'
+      ? `"${newCat.title}" kategorisi oluşturuldu.`
+      : `Category "${newCat.title}" created.`);
 
   // Update Category (Admin)
-  const handleUpdateCategory = (updatedCat: CategoryItem) => {
-    const updated = categories.map(c => c.id === updatedCat.id ? updatedCat : c);
-    persist(
-      () => saveCategories(updated),
-      () => setCategories(updated),
-      language === 'tr'
-        ? `"${updatedCat.title}" kategorisi güncellendi!`
-        : `Category "${updatedCat.title}" updated!`
-    );
-  };
+  const handleUpdateCategory = (updatedCat: CategoryItem) =>
+    kaydet(async () => {
+      const sira = Math.max(0, categories.findIndex((c) => c.id === updatedCat.id));
+      const kayitli = await saveCategory(updatedCat, sira);
+      setCategories((onceki) => onceki.map((c) => (c.id === kayitli.id ? kayitli : c)));
+    }, language === 'tr'
+      ? `"${updatedCat.title}" kategorisi güncellendi.`
+      : `Category "${updatedCat.title}" updated.`);
 
-  // Delete Category (Admin)
+  // Delete Category (Admin) — içinde ürün varsa veri katmanı engeller
   const handleDeleteCategory = (catId: string) => {
-    const target = categories.find(c => c.id === catId);
-    const updated = categories.filter(c => c.id !== catId);
-    persist(
-      () => saveCategories(updated),
-      () => setCategories(updated),
-      language === 'tr'
-        ? `"${target?.title || catId}" kategorisi silindi.`
-        : `Category "${target?.title || catId}" deleted.`
-    );
+    const hedef = categories.find((c) => c.id === catId);
+    return kaydet(async () => {
+      await softDeleteCategory(catId);
+      setCategories((onceki) => onceki.filter((c) => c.id !== catId));
+    }, language === 'tr'
+      ? `"${hedef?.title || catId}" kategorisi silindi.`
+      : `Category "${hedef?.title || catId}" deleted.`);
   };
 
   // Update Cover Settings (Admin)
-  const handleUpdateCovers = (newCovers: CoverSettings) => {
-    persist(
-      () => saveCovers(newCovers),
-      () => setCovers(newCovers),
-      language === 'tr'
-        ? 'Kapak fotoğrafları başarıyla güncellendi ve yayına alındı!'
-        : 'Cover photos successfully updated and published!'
-    );
-  };
-
+  const handleUpdateCovers = (newCovers: CoverSettings) =>
+    kaydet(async () => {
+      const kayitli = await saveCovers(newCovers);
+      setCovers(kayitli);
+    }, language === 'tr' ? 'Kapak fotoğrafları kaydedildi ve yayında.' : 'Cover photos saved and published.');
 
   // Add product to cart
   const handleAddToCart = (product: Product) => {
-    const existingIndex = cart.findIndex(item => item.product.id === product.id);
-    let updatedCart = [...cart];
-    
-    if (existingIndex > -1) {
-      updatedCart[existingIndex].quantity += 1;
-    } else {
-      updatedCart.push({ product, quantity: 1 });
+    if (product.status === 'satildi') {
+      triggerNotification(language === 'tr' ? 'Bu parça satıldı.' : 'This piece has been sold.');
+      return;
     }
-    
+
+    const varOlan = cart.find((item) => item.product.id === product.id);
+    // Sepette fotoğraf listesine gerek yok; tarayıcı depolamasını şişirmesin
+    const sepetUrunu: Product = { ...product, images: undefined };
+    const updatedCart = varOlan
+      ? cart.map((item) => (item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item))
+      : [...cart, { product: sepetUrunu, quantity: 1 }];
+
     saveCart(updatedCart);
     triggerNotification(
       language === 'tr' ? `"${product.title}" sepetinize eklendi.` : `"${product.title}" added to your cart.`
@@ -478,9 +528,13 @@ export default function App() {
     saveCart([]);
   };
 
+  // Mağazada gösterilecek ürünler: taslaklar ve çöp kutusundakiler hariç.
+  // (Yönetici girişi açıkken products listesi taslakları da içerir.)
+  const vitrinUrunleri = products.filter((u) => !u.deletedAt && u.status !== 'taslak');
+
   // Count items per category
   const getCategoryCount = (cat: Category) => {
-    return products.filter(p => p.category === cat).length;
+    return vitrinUrunleri.filter((u) => u.category === cat).length;
   };
 
   const totalCartItems = cart.reduce((acc, item) => acc + item.quantity, 0);
@@ -513,6 +567,11 @@ export default function App() {
           onUpdateProduct={handleUpdateProduct}
           onDeleteProduct={handleDeleteProduct}
           onReorderProducts={handleReorderProducts}
+          onRestoreProduct={handleRestoreProduct}
+          isAdmin={isAdmin}
+          oturumEposta={oturum?.user?.email ?? null}
+          sifreYenilemeModu={sifreYenilemeModu}
+          onSifreYenilendi={() => setSifreYenilemeModu(false)}
           onAddCategory={handleAddCategory}
           onUpdateCategory={handleUpdateCategory}
           onDeleteCategory={handleDeleteCategory}
@@ -592,7 +651,7 @@ export default function App() {
                       title={title}
                       subtitle={subtitle}
                       image={image}
-                      itemCount={getCategoryCount(cat.id)}
+                      itemCount={yukleniyor ? undefined : getCategoryCount(cat.id)}
                       onSelect={(selectedId) => handleSelectCategory(selectedId)}
                     />
                   );
@@ -630,7 +689,9 @@ export default function App() {
               transition={{ duration: 0.4 }}
             >
               <ProductGrid
-                products={products}
+                products={vitrinUrunleri}
+                yukleniyor={yukleniyor}
+                yuklemeHatasi={yuklemeHatasi}
                 category={activeCategory}
                 categories={categories}
                 onBack={() => handleSelectCategory(null)}
@@ -693,27 +754,25 @@ export default function App() {
             >
               {t('nav.story')}
             </button>
-            <button
-              id="footer-seramik"
-              onClick={() => handleSelectCategory('seramik')}
-              className="hover:text-brand-charcoal transition-colors"
-            >
-              {t('nav.ceramic')}
-            </button>
-            <button
-              id="footer-clothing"
-              onClick={() => handleSelectCategory('houte-couture')}
-              className="hover:text-brand-charcoal transition-colors"
-            >
-              {t('footer.clothes')}
-            </button>
-            <button
-              id="footer-decor"
-              onClick={() => handleSelectCategory('ev-to-home')}
-              className="hover:text-brand-charcoal transition-colors"
-            >
-              {t('footer.decor')}
-            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                id={`footer-${cat.id}`}
+                onClick={() => handleSelectCategory(cat.id)}
+                className="hover:text-brand-charcoal transition-colors"
+              >
+                {/* İlk üç kategori için mevcut footer metinleri korunur */}
+                {cat.id === 'seramik'
+                  ? t('nav.ceramic')
+                  : cat.id === 'houte-couture'
+                    ? t('footer.clothes')
+                    : cat.id === 'ev-to-home'
+                      ? t('footer.decor')
+                      : language === 'en' && cat.titleEn
+                        ? cat.titleEn
+                        : cat.title}
+              </button>
+            ))}
           </div>
           <div className="text-[10px] text-brand-warmgray/60 italic">
             {t('footer.motto')}

@@ -274,13 +274,18 @@ export default function ProductDetailModal({
                 <button
                   id="btn-add-to-cart"
                   onClick={handleAddToCart}
-                  className={`w-full py-3 rounded-[2px] flex items-center justify-center gap-2 text-xs font-sans tracking-[0.25em] uppercase transition-all duration-300 ${
-                    isAdded
+                  disabled={translatedProduct.status === 'satildi'}
+                  className={`w-full py-3 rounded-[2px] flex items-center justify-center gap-2 text-xs font-sans tracking-[0.25em] uppercase transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    translatedProduct.status === 'satildi'
+                      ? 'bg-brand-sand text-brand-charcoal'
+                      : isAdded
                       ? 'bg-emerald-800 text-white'
                       : 'bg-brand-charcoal hover:bg-brand-charcoal/90 text-brand-beige active:scale-[0.98]'
                   }`}
                 >
-                  {isAdded ? (
+                  {translatedProduct.status === 'satildi' ? (
+                    <>{language === 'tr' ? 'BU PARÇA SATILDI' : 'THIS PIECE HAS BEEN SOLD'}</>
+                  ) : isAdded ? (
                     <>
                       <Check size={16} /> {language === 'tr' ? 'SEPETE EKLENDİ' : 'ADDED TO CART'}
                     </>

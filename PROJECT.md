@@ -38,8 +38,9 @@ Bu projede geçmişte veri kaybı riski yaşandı. Aşağıdakiler tartışmaya 
    işlemi engellenir. (Aksi halde boş/demo veri gerçek kataloğun üzerine yazılır.)
 4. **Örnek/demo ürün listesi yedek plan olarak kullanılmaz.** Veri gelmezse boş
    ekran ve hata mesajı gösterilir; sahte ürün gösterilmez.
-5. **Silme işlemi geri alınabilir olmalı.** Silinen kayıt `deleted_at` ile işaretlenir,
-   30 gün çöp kutusunda bekler; kalıcı silme ayrı ve bilinçli bir işlemdir.
+5. **Silme işlemi geri alınabilir olmalı.** Silinen kayıt `deleted_at` ile işaretlenir ve
+   süresiz olarak çöp kutusunda bekler. API üzerinden kalıcı silme veritabanı kurallarıyla
+   tamamen kapalıdır; gerekirse yalnızca doğrudan veritabanı bağlantısıyla, yedek alınarak yapılır.
 6. **"Hepsini sıfırla" türünde toplu yıkıcı buton bulunmaz.**
 7. **Başarı mesajı ancak kayıt gerçekten doğrulandıktan sonra gösterilir.**
 
@@ -71,9 +72,12 @@ didi-home/
 ├─ scripts/                Tek seferlik bakım/taşıma betikleri
 ├─ sql/                    Supabase şema ve güvenlik kuralları (sırayla çalıştırılır)
 ├─ src/
-│  ├─ components/          Arayüz bileşenleri
+│  ├─ components/          Arayüz bileşenleri (AdminLogin.tsx: yönetici girişi)
 │  ├─ context/             Dil (TR/EN) sağlayıcısı
-│  ├─ data.ts              Veri erişim katmanı
+│  ├─ hooks/               Ortak davranışlar (useModalBehavior: ESC, kaydırma kilidi)
+│  ├─ auth.ts              Yönetici girişi (Supabase Auth)
+│  ├─ orders.ts            Sipariş akışı (WhatsApp + veritabanı kaydı)
+│  ├─ store.ts             Veri erişim katmanı (tüm okuma/yazma buradan)
 │  ├─ supabase.ts          Supabase istemcisi
 │  └─ types.ts             Tip tanımları
 ├─ PROJECT.md              ← bu dosya
@@ -101,6 +105,7 @@ Yerelde `.env.local`, yayında Vercel → Settings → Environment Variables.
 | `VITE_SUPABASE_URL` | Tarayıcı | Hayır (herkese açık) |
 | `VITE_SUPABASE_ANON_KEY` | Tarayıcı | Hayır (RLS kuralları korur) |
 | `VITE_WHATSAPP_NUMBER` | Tarayıcı, sipariş yönlendirmesi | Hayır |
+| `SUPABASE_DB_URL` | Yalnızca yerel betikler (`scripts/`) — **Vercel'e eklenmez** | **Evet** |
 | `OPENROUTER_API_KEY` | Yalnızca sunucu (`api/translate`) | **Evet** |
 | `OPENROUTER_MODEL` | Sunucu, çeviri modeli adı | Hayır |
 
@@ -108,14 +113,15 @@ Yerelde `.env.local`, yayında Vercel → Settings → Environment Variables.
 
 ## 6. Veri modeli
 
-### Mevcut durum (devralınan yapı — Aşama 1'de değişecek)
+### Eski yapı (ARŞİV — 2026-09-16'ya kadar)
 
 `store_data` adlı tek tabloda üç satır: `products`, `categories`, `covers`.
 Her satırın `value` sütununda tüm liste tek bir JSON olarak durur.
 Sorunları: her kayıtta tüm katalog üzerine yazılır, eşzamanlı düzenlemede
 son yazan kazanır, fotoğraflar JSON içine base64 olarak gömülüdür (5,6 MB indirme).
+Tablo **silinmedi**, arşiv olarak duruyor (bkz. Süreç günlüğü).
 
-### Hedef yapı
+### Güncel yapı (2026-09-16'dan itibaren)
 
 - `products` — ürün başına bir satır (`id`, `title`, `category_id`, `price`,
   `story`, `images[]`, `status` (taslak/yayında/satıldı), `sort_order`,
@@ -124,16 +130,39 @@ son yazan kazanır, fotoğraflar JSON içine base64 olarak gömülüdür (5,6 MB
 - `settings` — kapak görselleri gibi genel ayarlar
 - `orders` — gelen siparişler
 - `revisions` — her değişiklikten önceki hali saklayan otomatik sürüm geçmişi
-- Fotoğraflar `product-images` adlı Supabase Storage klasöründe; veritabanında
-  yalnızca adresleri durur.
+- Fotoğraflar (Aşama 3 hedefi) `product-images` adlı Supabase Storage klasöründe;
+  veritabanında yalnızca adresleri durur. **Şu an** eski ürünlerin bir kısmının
+  fotoğrafları hâlâ base64 olarak `images` sütununda.
+
+### Güvenlik kuralları özeti (`sql/02_security.sql`)
+
+| Kim | Ürün / Kategori / Ayar | Sipariş | Sürüm geçmişi |
+|---|---|---|---|
+| Ziyaretçi | Yalnızca yayındakileri **okur** | **Ekler**, okuyamaz | Erişemez |
+| Yönetici (`is_admin()`) | Okur, ekler, günceller | Okur, günceller | Okur |
+| Herkes | **Kalıcı silme yok** (DELETE kuralı tanımlı değil) | Silme yok | — |
+
+Yönetici listesi iki yerde tutulur ve **ikisi birlikte** güncellenmelidir:
+`src/auth.ts → YONETICI_EPOSTALARI` (arayüz) ve `sql/02_security.sql → is_admin()` (asıl koruma).
+
+### SQL dosyaları (sırayla)
+
+| Dosya | Ne yapar | Durum |
+|---|---|---|
+| `sql/01_schema.sql` | Tablolar, tetikleyiciler, sürüm geçmişi | ✅ Çalıştırıldı |
+| `sql/02_security.sql` | RLS kuralları, `is_admin()` | ✅ Çalıştırıldı |
+| `sql/03_archive_store_data.sql` | Eski tabloyu API'ye tamamen kapatır | ⏳ Yeni kod yayına alınınca **tekrar** çalıştırılacak |
+| `sql/03b_store_data_readonly_until_deploy.sql` | GEÇİCİ: canlı eski kod için salt okuma | ✅ Şu an etkin |
+
+Çalıştırma: `node scripts/run-sql.mjs sql/DOSYA.sql` (`.env.local` içinde `SUPABASE_DB_URL` gerekir).
 
 ---
 
 ## 7. Aşama planı
 
 - [x] **Aşama 0 — Güvenlik ve acil düzeltmeler** _(tamamlandı: 2026-09-16)_
-- [ ] **Aşama 1 — Veri modeli ve veri kaybı korumaları**  ← sıradaki
-- [ ] **Aşama 2 — Gerçek yönetici girişi (Supabase Auth + RLS)**
+- [x] **Aşama 1 — Veri modeli ve veri kaybı korumaları** _(tamamlandı: 2026-09-16)_
+- [~] **Aşama 2 — Gerçek yönetici girişi (Supabase Auth + RLS)** — kod ve RLS hazır; yönetici hesabı oluşturulacak, yeni kod yayına alınacak
 - [ ] **Aşama 3 — Fotoğraf altyapısı (Storage) ve panel ölçü rehberi**
 - [~] **Aşama 4 — Sipariş akışı (kayıt + WhatsApp)** — WhatsApp tarafı çalışıyor, kayıt tabloyu bekliyor
 - [ ] **Aşama 5 — Otomatik İngilizce çeviri (OpenRouter + terim sözlüğü)**
@@ -310,6 +339,73 @@ sunduğu standart seçeneklere (16:9 / 4:3 / 1:1 / 3:4 / 9:16) hizalandı.
 klavye okları, ESC ile kapanma, doğrudan bağlantıda sitede kalma, 16 sn sonra gelen verinin pencereyi
 yeniden açmaması ve site içi akışta geri gitme tek tek test edildi.
 
+### 2026-09-16 — Aşama 1 tamamlandı, Aşama 2 büyük ölçüde tamamlandı
+
+**Veritabanı erişimi**
+- `.env.local` içine `SUPABASE_DB_URL` (Session pooler) eklendi. Artık şema değişiklikleri
+  Supabase paneline girmeden `scripts/run-sql.mjs` ile yapılıyor.
+
+**Şema ve taşıma**
+- `sql/01_schema.sql` çalıştırıldı: products, categories, settings, orders, revisions.
+- İlk taşıma denemesi Supabase API'sinin süre sınırına takıldı (5,6 MB tek JSON satırı);
+  **hiçbir şey yazılmadan** durdu. Betik doğrudan veritabanı bağlantısına ve
+  **tek transaction**'a çevrildi: doğrulama başarısız olursa her şey geri alınıyor.
+- Taşıma başarılı: 3 kategori, 7 ürün, kapak ayarları. Tüm fotoğraflar (base64 dahil)
+  byte byte karşılaştırılarak doğrulandı. "Ev Renevasyon" → "Ev Renovasyon", 9.999 TL.
+- Taşıma öncesi yedek: `backups/store_data-tasima-oncesi-2026-09-16-10-18.json`.
+
+**Güvenlik bulgusu ve düzeltmesi**
+- Yeni tablolarda RLS kapalıydı; anon anahtarla okunup yazılabiliyordu (siparişlerdeki
+  müşteri bilgileri dahil). `sql/02_security.sql` ile kapatıldı.
+- Eski `store_data` tablosunda **"Allow public read-write on store_data"** adlı, herkese
+  okuma-yazma veren bir kural bulundu. Projenin başındaki güvenlik açığının asıl kaynağı buydu.
+  Kural kaldırıldı.
+- ⚠️ **Yaşanan olay:** Kural kaldırıldığında canlı site (hâlâ eski kodda, `store_data`'dan
+  okuyor) yaklaşık 1-2 dakika veri okuyamadı. Fark edilince `sql/03b_...` ile **salt okuma**
+  izni geri verildi; canlı sitenin 5/1/1 ürünle doğru çalıştığı tarayıcıda doğrulandı.
+  Yazma kapalı kaldı. **Ders:** canlı sitenin kullandığı bir kaynağa dokunmadan önce hangi
+  kod sürümünün yayında olduğu kontrol edilmeli.
+- Dışarıdan (ziyaretçi olarak) 6 test yapıldı: ürün okuma ✓, sipariş okuma engelli ✓,
+  sipariş ekleme ✓, fiyat değiştirme engelli ✓, silme engelli ✓, geçmiş okuma engelli ✓.
+- Yönetici yetkileri, geri alınan bir transaction içinde JWT simülasyonuyla doğrulandı:
+  yönetici güncelleyip çöp kutusuna taşıyabiliyor, sürüm geçmişi otomatik yazılıyor;
+  başka bir hesap hiçbir şeyi değiştiremiyor.
+
+**Uygulama yeni yapıya bağlandı**
+- `src/data.ts`, `src/data/*.json` ve geliştirme sunucusundaki dosya-API eklentisi **silindi**.
+- `App.tsx` artık `src/store.ts` kullanıyor. Her kayıt beklenip doğrulanıyor; hata olursa
+  ekrandaki liste değişmiyor.
+- Ürünler tarayıcıda **önbelleğe alınmıyor** (yalnızca küçük kategori/kapak verisi).
+  Eski büyük önbellek anahtarları ilk açılışta temizleniyor.
+- Veri yüklenirken kategori sayfasında tasarımla uyumlu iskelet kartlar, veri gelmezse
+  sahte ürün yerine "Koleksiyon şu an yüklenemedi" mesajı gösteriliyor.
+- Ana sayfa kartlarında yüklenirken "0 Parça" yazmıyor.
+- Footer'daki kategori bağlantıları dinamik (yeni kategoriler otomatik görünür;
+  ilk üç kategorinin mevcut metinleri korundu).
+
+**Yönetim paneli**
+- Şifre "didi" sistemi tamamen kaldırıldı. Yeni `AdminLogin` bileşeni: e-posta + şifre,
+  ilk kurulum için "Hesap oluşturun", "Şifremi unuttum", e-postadan gelinince "Yeni şifre belirle".
+  Görünüm önceki giriş kartıyla aynı. Supabase hata mesajları Türkçeye çevriliyor.
+- **Çöp Kutusu** sekmesi: silinen ürünler listelenir, tek tıkla geri getirilir.
+  Silinen ürünler süresiz saklanır (otomatik temizleme yok — daha güvenli).
+- **Yedek İndir** butonu: tüm katalog JSON dosyası olarak bilgisayara iner.
+- Ürün formuna **Yayın durumu**: Yayında / Taslak (sitede görünmez) / Satıldı
+  (görünür, "Satıldı" etiketi alır, sepete eklenemez).
+- Silme onayı artık "çöp kutusuna taşınsın mı?" diye soruyor.
+
+**Doğrulama:** tsc 0 hata, build başarılı; ana sayfa yeni veritabanından 5/1/1 ürünle
+açıldı; yeni giriş ekranında hatalı giriş Türkçe hata verdi.
+
+**Bekleyenler**
+1. Kullanıcı: Supabase → Authentication → URL Configuration (Site URL + Redirect URLs).
+2. Kullanıcı: `/admin` → "Hesap oluşturun" → e-postadaki onay bağlantısı.
+3. Yeni kodun yayına alınması (GitHub'a push → Vercel). **O zamana kadar canlı sitedeki
+   eski yönetim panelinden yapılan değişiklikler KAYDEDİLMEZ** (yazma kapalı).
+4. Yayından sonra `sql/03_archive_store_data.sql` tekrar çalıştırılacak.
+5. Veritabanı şifresi sohbet kaydında geçtiği için, veritabanı işleri bitince sıfırlanacak
+   ve `.env.local` güncellenecek.
+
 ---
 
 ## 9. Alınan kararlar
@@ -326,6 +422,10 @@ yeniden açmaması ve site içi akışta geri gitme tek tek test edildi.
 | 2026-09-16 | Şema değişiklikleri `scripts/run-sql.mjs` ile yapılacak | Supabase paneline girmeden, tek bağlantı bilgisiyle |
 | 2026-09-16 | Siparişte WhatsApp asıl, veritabanı ikinci kanal | Veritabanı erişilemezse bile sipariş kaybolmasın |
 | 2026-09-16 | Tüm görseller dikey 3:4 standardında | Üretim araçlarının hazır oranlarıyla birebir uyum |
+| 2026-09-16 | Veri taşıma API yerine doğrudan bağlantı + tek transaction ile | API süre sınırı; yarım taşıma riskini sıfırlamak |
+| 2026-09-16 | API üzerinden kalıcı silme tamamen kapalı | Altın kural 5'i veritabanı seviyesinde garanti etmek |
+| 2026-09-16 | Çöp kutusu süresiz saklar | Otomatik temizleme, fark edilmeyen veri kaybına yol açabilir |
+| 2026-09-16 | Ürünler tarayıcıda önbelleğe alınmaz | Kota dolunca sahte ürün gösterme hatasının kökünü kesmek |
 
 ---
 

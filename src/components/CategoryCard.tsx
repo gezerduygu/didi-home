@@ -8,7 +8,8 @@ interface CategoryCardProps {
   title: string;
   subtitle?: string;
   image: string;
-  itemCount: number;
+  /** Yüklenirken undefined gelir; sayı gösterilmez ("0 Parça" yanıltmasın) */
+  itemCount?: number;
   onSelect: (category: Category) => void;
 }
 
@@ -71,7 +72,9 @@ export default function CategoryCard({
           <>
             <div className="w-8 h-[1px] bg-brand-warmgray/30 my-2 group-hover:w-16 group-hover:bg-brand-terracotta/40 transition-all duration-500" />
             <p className="text-xs font-sans tracking-[0.15em] text-brand-warmgray uppercase">
-              {subtitle} <span className="text-[10px] text-brand-warmgray/60 italic ml-1">({itemCount} {language === 'tr' ? 'Parça' : 'Items'})</span>
+              {subtitle}{itemCount !== undefined && (
+                <span className="text-[10px] text-brand-warmgray/60 italic ml-1">({itemCount} {language === 'tr' ? 'Parça' : 'Items'})</span>
+              )}
             </p>
           </>
         )}
