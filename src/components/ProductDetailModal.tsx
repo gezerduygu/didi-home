@@ -10,12 +10,15 @@ const KAYDIRMA_ESIGI = 45;
 
 interface ProductDetailModalProps {
   product: Product | null;
+  /** Kategorinin görünen adı (yeni eklenen kategorilerde kod yerine ad görünsün) */
+  kategoriAdi?: string;
   onClose: () => void;
   onAddToCart: (product: Product) => void;
 }
 
 export default function ProductDetailModal({
   product,
+  kategoriAdi,
   onClose,
   onAddToCart
 }: ProductDetailModalProps) {
@@ -184,13 +187,7 @@ export default function ProductDetailModal({
                 {/* Category, Subcategory & Condition tags */}
                 <div className="flex items-center flex-wrap gap-2 mb-2 text-[10px] font-sans tracking-[0.2em] text-brand-warmgray uppercase">
                   <span>
-                    {translatedProduct.category === 'houte-couture' 
-                      ? t('nav.houteCouture') 
-                      : translatedProduct.category === 'seramik' 
-                        ? t('nav.ceramic') 
-                        : translatedProduct.category === 'ev-to-home'
-                          ? t('nav.homeCategory')
-                          : translatedProduct.category}
+                    {kategoriAdi || translatedProduct.category}
                   </span>
                   {translatedProduct.subcategory && (
                     <>

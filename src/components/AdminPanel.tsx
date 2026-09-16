@@ -34,8 +34,8 @@ import {
   Download,
   Undo2
 } from 'lucide-react';
-import { Product, Category, CoverSettings, CategoryItem, ProductStatus } from '../types';
-import { DEFAULT_COVERS, listDeletedProducts, exportAll } from '../store';
+import { Product, Category, CategoryItem, ProductStatus } from '../types';
+import { listDeletedProducts, exportAll } from '../store';
 import { cikisYap } from '../auth';
 import AdminLogin from './AdminLogin';
 import { useLanguage } from '../context/LanguageContext';
@@ -43,7 +43,6 @@ import { useLanguage } from '../context/LanguageContext';
 interface AdminPanelProps {
   products: Product[];
   categories: CategoryItem[];
-  covers: CoverSettings;
   onAddProduct: (product: Product) => void;
   onUpdateProduct: (product: Product) => void;
   onDeleteProduct: (id: string) => void;
@@ -56,14 +55,15 @@ interface AdminPanelProps {
   sifreYenilemeModu: boolean;
   onSifreYenilendi: () => void;
   onAddCategory: (category: CategoryItem) => void;
-  onUpdateCategory: (category: CategoryItem) => void;
+  /** Kayıt başarılıysa true döner (vitrin görseli ekranında onay göstermek için) */
+  onUpdateCategory: (category: CategoryItem) => Promise<boolean> | void;
   onDeleteCategory: (categoryId: string) => void;
-  onUpdateCovers: (covers: CoverSettings) => void;
   onClose: () => void;
 }
 
-const COVER_PRESETS: Record<keyof CoverSettings, { url: string; label: string }[]> = {
-  hauteCoutureCover: [
+/** Hazır vitrin görselleri — kategori koduna göre. Yeni kategorilerde galeri çıkmaz. */
+const COVER_PRESETS: Record<string, { url: string; label: string }[]> = {
+  'houte-couture': [
     { url: '/images/haute-couture-cover.jpg', label: 'Klasik Model (Varsayılan)' },
     { url: '/images/products/green_kaftan_3.jpg', label: 'Zümrüt Yeşili Kaftan' },
     { url: '/images/products/teal_peacock_1.jpg', label: 'Petrol Tavuskuşu' },
@@ -71,26 +71,27 @@ const COVER_PRESETS: Record<keyof CoverSettings, { url: string; label: string }[
     { url: '/images/products/prod_img_6.jpg', label: 'Clay Kimono' },
     { url: '/images/products/prod_img_16.jpg', label: 'Örgü Hırka' }
   ],
-  ceramicCover: [
+  seramik: [
     { url: '/images/ceramic-cover.jpg', label: 'Wabi Ham Vazo (Varsayılan)' },
     { url: '/images/products/prod_img_15.jpg', label: 'Şamot Kum Vazo' },
     { url: '/images/products/prod_img_2.jpg', label: 'Terracotta Çay Seti' },
     { url: '/images/products/prod_img_8.jpg', label: 'Organik Meyvelik' },
     { url: '/images/products/prod_img_14.jpg', label: 'Sır Altı Buhurdanlık' }
   ],
-  homeCover: [
+  'ev-to-home': [
     { url: '/images/ev-illustration.jpg', label: 'Taş Ev Çerçeveli Tablo (Varsayılan)' },
     { url: '/images/products/prod_img_17.jpg', label: 'Hasır Kenarlı Ayna' },
     { url: '/images/products/prod_img_9.jpg', label: 'Vintage Kilim Kırlent' },
     { url: '/images/products/prod_img_1.jpg', label: 'Alabaster Taş Küre' },
     { url: '/images/products/prod_img_10.jpg', label: 'Antik Rustik Kase' }
-  ],
-  homeDesignBanner: [
-    { url: '/images/ev-to-home-cover.jpg', label: 'Taş Ev Tablo Çerçeve (Varsayılan)' },
-    { url: '/images/ev-illustration.jpg', label: 'Ege Taş Ev İllüstrasyonu' },
-    { url: '/images/products/prod_img_13.jpg', label: 'Doğal Taş Mimari Doku' },
-    { url: '/images/products/prod_img_18.jpg', label: 'Akdeniz Rustik Mekan' }
   ]
+};
+
+/** İlk üç kategorinin fabrika vitrin görselleri ("Varsayılana sıfırla" için). */
+const VARSAYILAN_VITRIN: Record<string, string> = {
+  'houte-couture': '/images/haute-couture-cover.jpg',
+  seramik: '/images/ceramic-cover.jpg',
+  'ev-to-home': '/images/ev-illustration.jpg'
 };
 
 const compressCoverImage = (file: File): Promise<string> => {
@@ -251,7 +252,6 @@ function OranRehberi({ language }: { language: 'tr' | 'en' }) {
 export default function AdminPanel({
   products,
   categories,
-  covers,
   onAddProduct,
   onUpdateProduct,
   onDeleteProduct,
@@ -264,7 +264,6 @@ export default function AdminPanel({
   onAddCategory,
   onUpdateCategory,
   onDeleteCategory,
-  onUpdateCovers,
   onClose
 }: AdminPanelProps) {
   const { language, t } = useLanguage();
@@ -280,15 +279,10 @@ export default function AdminPanel({
   const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'covers' | 'trash'>('products');
 
   // Cover Photos management states
-  const [coverUrlInputs, setCoverUrlInputs] = useState<Record<keyof CoverSettings, string>>({
-    hauteCoutureCover: '',
-    ceramicCover: '',
-    homeCover: '',
-    homeDesignBanner: ''
-  });
+  const [coverUrlInputs, setCoverUrlInputs] = useState<Record<string, string>>({});
   const [coverLoadingKey, setCoverLoadingKey] = useState<string | null>(null);
   const [coverSuccessKey, setCoverSuccessKey] = useState<string | null>(null);
-  const [openPresetTrayKey, setOpenPresetTrayKey] = useState<keyof CoverSettings | null>(null);
+  const [openPresetTrayKey, setOpenPresetTrayKey] = useState<string | null>(null);
 
   // --- Category Management state ---
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -426,7 +420,7 @@ export default function AdminPanel({
     setCatFormSubtitleEn(cat.subtitleEn || '');
     setCatFormDescription(cat.description || '');
     setCatFormDescriptionEn(cat.descriptionEn || '');
-    setCatFormImage(cat.image || covers[cat.id === 'houte-couture' ? 'hauteCoutureCover' : cat.id === 'seramik' ? 'ceramicCover' : 'homeCover'] || '/images/ceramic-cover.jpg');
+    setCatFormImage(cat.image || VARSAYILAN_VITRIN[cat.id] || '/images/ceramic-cover.jpg');
     setCatFormSubcategories(cat.subcategories ? [...cat.subcategories] : []);
     setCatFormNewSub('');
     setCatError('');
@@ -504,58 +498,51 @@ export default function AdminPanel({
     }
   };
 
-  // --- COVER PHOTOS HANDLERS ---
-  const handleCoverUpload = async (key: keyof CoverSettings, file: File) => {
+  // --- VİTRİN (KAPAK) GÖRSELLERİ ---
+  // Tek kaynak: kategorinin kendi görseli (categories.image). Bu sekme ile
+  // Kategori Yönetimi'ndeki görsel alanı AYNI değeri düzenler.
+  const vitrinGorseliKaydet = async (katId: string, gorsel: string) => {
+    const kategori = categories.find((c) => c.id === katId);
+    if (!kategori) return;
+    setCoverLoadingKey(katId);
     try {
-      setCoverLoadingKey(key);
-      const compressed = await compressCoverImage(file);
-      const updated: CoverSettings = {
-        ...covers,
-        [key]: compressed
-      };
-      onUpdateCovers(updated);
-      setCoverSuccessKey(key);
-      setTimeout(() => setCoverSuccessKey(null), 3000);
-    } catch (err) {
-      console.error('Cover upload failed', err);
-      alert(language === 'tr' ? 'Görsel yüklenirken bir hata oluştu.' : 'Failed to upload image.');
+      const sonuc = await onUpdateCategory({ ...kategori, image: gorsel });
+      if (sonuc !== false) {
+        setCoverSuccessKey(katId);
+        setTimeout(() => setCoverSuccessKey(null), 3000);
+      }
     } finally {
       setCoverLoadingKey(null);
     }
   };
 
-  const handleCoverUrlSubmit = (key: keyof CoverSettings) => {
-    const url = coverUrlInputs[key]?.trim();
+  const handleCoverUpload = async (katId: string, file: File) => {
+    try {
+      setCoverLoadingKey(katId);
+      const compressed = await compressCoverImage(file);
+      await vitrinGorseliKaydet(katId, compressed);
+    } catch (err) {
+      console.error('Cover upload failed', err);
+      alert(language === 'tr' ? 'Görsel yüklenirken bir hata oluştu.' : 'Failed to upload image.');
+      setCoverLoadingKey(null);
+    }
+  };
+
+  const handleCoverUrlSubmit = (katId: string) => {
+    const url = coverUrlInputs[katId]?.trim();
     if (!url) return;
-    const updated: CoverSettings = {
-      ...covers,
-      [key]: url
-    };
-    onUpdateCovers(updated);
-    setCoverUrlInputs(prev => ({ ...prev, [key]: '' }));
-    setCoverSuccessKey(key);
-    setTimeout(() => setCoverSuccessKey(null), 3000);
+    setCoverUrlInputs((onceki) => ({ ...onceki, [katId]: '' }));
+    vitrinGorseliKaydet(katId, url);
   };
 
-  const handleCoverSelectPreset = (key: keyof CoverSettings, presetUrl: string) => {
-    const updated: CoverSettings = {
-      ...covers,
-      [key]: presetUrl
-    };
-    onUpdateCovers(updated);
+  const handleCoverSelectPreset = (katId: string, presetUrl: string) => {
     setOpenPresetTrayKey(null);
-    setCoverSuccessKey(key);
-    setTimeout(() => setCoverSuccessKey(null), 3000);
+    vitrinGorseliKaydet(katId, presetUrl);
   };
 
-  const handleCoverResetSingle = (key: keyof CoverSettings) => {
-    const updated: CoverSettings = {
-      ...covers,
-      [key]: DEFAULT_COVERS[key]
-    };
-    onUpdateCovers(updated);
-    setCoverSuccessKey(key);
-    setTimeout(() => setCoverSuccessKey(null), 3000);
+  const handleCoverResetSingle = (katId: string) => {
+    const varsayilan = VARSAYILAN_VITRIN[katId];
+    if (varsayilan) vitrinGorseliKaydet(katId, varsayilan);
   };
 
   // Open Form for Adding
@@ -1345,7 +1332,7 @@ export default function AdminPanel({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {categories.map((cat, index) => {
                 const count = products.filter(p => p.category === cat.id).length;
-                const coverImg = cat.image || covers[cat.id === 'houte-couture' ? 'hauteCoutureCover' : cat.id === 'seramik' ? 'ceramicCover' : 'homeCover'] || '/images/ceramic-cover.jpg';
+                const coverImg = cat.image || VARSAYILAN_VITRIN[cat.id] || '/images/ceramic-cover.jpg';
                 const subcategories = cat.subcategories || [];
 
                 return (
@@ -1554,43 +1541,25 @@ export default function AdminPanel({
 
             {/* Showcase Cover Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[
-                {
-                  key: 'hauteCoutureCover' as keyof CoverSettings,
-                  titleTr: 'Haute Couture Kapak',
-                  titleEn: 'Haute Couture Cover',
-                  badgeTr: 'Ana Sayfa Kolon 1',
-                  badgeEn: 'Homepage Column 1',
+              {categories.map((cat, sira) => {
+                // Kart metinleri kategoriden türetilir; yeni kategoriler otomatik eklenir
+                const item = {
+                  key: cat.id,
+                  titleTr: cat.title,
+                  titleEn: cat.titleEn || cat.title,
+                  badgeTr: `Ana Sayfa Vitrin ${sira + 1}`,
+                  badgeEn: `Homepage Showcase ${sira + 1}`,
                   aspectClass: 'aspect-[3/4]',
-                  descTr: 'Giyim ve tekstil koleksiyonu dikey vitrin kartı görseli.',
-                  descEn: 'Vertical showcase card image for clothing & textile collection.'
-                },
-                {
-                  key: 'ceramicCover' as keyof CoverSettings,
-                  titleTr: 'Seramik Koleksiyonu Kapak',
-                  titleEn: 'Ceramics Collection Cover',
-                  badgeTr: 'Ana Sayfa Kolon 2',
-                  badgeEn: 'Homepage Column 2',
-                  aspectClass: 'aspect-[3/4]',
-                  descTr: 'El yapımı seramikler ve toprak vazolar vitrin kartı görseli.',
-                  descEn: 'Vertical showcase card image for handcrafted ceramics & vases.'
-                },
-                {
-                  key: 'homeCover' as keyof CoverSettings,
-                  titleTr: 'Ev (Ev to Home) Kapak',
-                  titleEn: 'Home Decor (Ev to Home) Cover',
-                  badgeTr: 'Ana Sayfa Kolon 3',
-                  badgeEn: 'Homepage Column 3',
-                  aspectClass: 'aspect-[3/4]',
-                  descTr: 'Ev eşyası, taş ev mimarisi ve vintage obje vitrin kartı görseli.',
-                  descEn: 'Vertical showcase card image for home decor & vintage objects.'
-                }
-              ].map((item) => {
-                const currentImg = covers[item.key] || DEFAULT_COVERS[item.key];
-                const isCustom = currentImg !== DEFAULT_COVERS[item.key];
+                  descTr: cat.subtitle || 'Ana sayfadaki dikey vitrin kartı görseli.',
+                  descEn: cat.subtitleEn || cat.subtitle || 'Vertical showcase card image on the homepage.'
+                };
+                const varsayilan = VARSAYILAN_VITRIN[cat.id];
+                const currentImg = cat.image || varsayilan || '/images/ceramic-cover.jpg';
+                const isCustom = Boolean(varsayilan) && currentImg !== varsayilan;
                 const isLoading = coverLoadingKey === item.key;
                 const isSuccess = coverSuccessKey === item.key;
                 const isPresetOpen = openPresetTrayKey === item.key;
+                const hazirGorselVar = (COVER_PRESETS[item.key]?.length ?? 0) > 0;
 
                 return (
                   <div
@@ -1684,6 +1653,7 @@ export default function AdminPanel({
                               <span>{language === 'tr' ? 'BİLGİSAYARDAN FOTOĞRAF YÜKLE' : 'UPLOAD FROM COMPUTER'}</span>
                             </button>
 
+                            {hazirGorselVar && (
                             <button
                               type="button"
                               onClick={() => setOpenPresetTrayKey(isPresetOpen ? null : item.key)}
@@ -1697,6 +1667,7 @@ export default function AdminPanel({
                               <ImageIcon size={13} />
                               <span>{language === 'tr' ? 'GALERİ' : 'PRESETS'}</span>
                             </button>
+                            )}
                           </div>
                         </div>
 

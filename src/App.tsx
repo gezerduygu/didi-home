@@ -14,21 +14,18 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { yoneticiMi } from './auth';
 import {
-  DEFAULT_COVERS,
   StoreError,
   listVisibleProducts,
   listAllProducts,
   listCategories,
-  getCovers,
   saveProduct,
   softDeleteProduct,
   restoreProduct,
   saveProductOrder,
   saveCategory,
-  softDeleteCategory,
-  saveCovers
+  softDeleteCategory
 } from './store';
-import { Product, CartItem, Category, CoverSettings, CategoryItem } from './types';
+import { Product, CartItem, Category, CategoryItem } from './types';
 import { useLanguage } from './context/LanguageContext';
 
 interface HistoryState {
@@ -106,7 +103,6 @@ export default function App() {
   // Geri tuşu işleyicisi için ürünlerin güncel kopyası (kapanış değişkeni tuzağını önler)
   const productsRef = useRef<Product[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>(() => onbellektenOku('didi_cache_categories', []));
-  const [covers, setCovers] = useState<CoverSettings>(() => ({ ...DEFAULT_COVERS, ...onbellektenOku('didi_cache_covers', {}) }));
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -131,7 +127,7 @@ export default function App() {
     // Eski sürümden kalan büyük önbellek anahtarlarını temizle (tarayıcı kotası dolmasın)
     try {
       [
-        'didi_home_products', 'didi_products', 'didi_home_covers', 'didi_covers',
+        'didi_home_products', 'didi_products', 'didi_home_covers', 'didi_covers', 'didi_cache_covers',
         'didi_home_categories', 'didi_categories', 'didi_cache_ver'
       ].forEach((k) => localStorage.removeItem(k));
     } catch {
@@ -174,17 +170,14 @@ export default function App() {
   // Veri gelmezse örnek katalog GÖSTERİLMEZ; hata mesajı gösterilir (Altın kural 4).
   const veriyiYukle = useCallback(async () => {
     try {
-      const [urunler, kategoriler, kapaklar] = await Promise.all([
+      const [urunler, kategoriler] = await Promise.all([
         isAdmin ? listAllProducts() : listVisibleProducts(),
-        listCategories(),
-        getCovers()
+        listCategories()
       ]);
       setProducts(urunler);
       setCategories(kategoriler);
-      setCovers(kapaklar);
       setYuklemeHatasi(null);
       onbellegeYaz('didi_cache_categories', kategoriler);
-      onbellegeYaz('didi_cache_covers', kapaklar);
 
       // Doğrudan ürün bağlantısıyla gelindiyse ve kullanıcı HÂLÂ o üründeyse aç.
       // (Veri geç gelirse kullanıcının kapattığı pencere yeniden açılmasın.)
@@ -478,12 +471,6 @@ export default function App() {
       : `Category "${hedef?.title || catId}" deleted.`);
   };
 
-  // Update Cover Settings (Admin)
-  const handleUpdateCovers = (newCovers: CoverSettings) =>
-    kaydet(async () => {
-      const kayitli = await saveCovers(newCovers);
-      setCovers(kayitli);
-    }, language === 'tr' ? 'Kapak fotoğrafları kaydedildi ve yayında.' : 'Cover photos saved and published.');
 
   // Add product to cart
   const handleAddToCart = (product: Product) => {
@@ -539,6 +526,30 @@ export default function App() {
 
   const totalCartItems = cart.reduce((acc, item) => acc + item.quantity, 0);
 
+  // Ana sayfa vitrin ızgarası. Tailwind sınıfları sabit yazılmalı (dinamik üretilemez).
+  const vitrinDuzeni = (() => {
+    const adet = categories.length;
+    if (adet <= 1) return { kapsayici: 'max-w-md', kart: (_: number) => '' };
+    if (adet === 2) return { kapsayici: 'md:grid-cols-2 max-w-4xl', kart: (_: number) => '' };
+    if (adet === 4) return { kapsayici: 'md:grid-cols-2 lg:grid-cols-4 max-w-7xl', kart: (_: number) => '' };
+    const kalan = adet % 3;
+    return {
+      kapsayici: 'md:grid-cols-6 max-w-6xl',
+      kart: (sira: number) => {
+        if (kalan === 1 && sira === adet - 1) return 'md:col-span-2 md:col-start-3';
+        if (kalan === 2 && sira === adet - 2) return 'md:col-span-2 md:col-start-2';
+        return 'md:col-span-2';
+      }
+    };
+  })();
+
+  // Kategori kodunu görünen ada çevirir (yeni eklenen kategoriler dahil)
+  const kategoriAdi = (kategoriId: string) => {
+    const kategori = categories.find((c) => c.id === kategoriId);
+    if (!kategori) return kategoriId;
+    return language === 'en' && kategori.titleEn ? kategori.titleEn : kategori.title;
+  };
+
   if (isAdminOpen) {
     return (
       <div className="min-h-screen bg-brand-beige text-brand-charcoal flex flex-col justify-between selection:bg-brand-sand selection:text-brand-charcoal relative">
@@ -562,7 +573,6 @@ export default function App() {
         <AdminPanel
           products={products}
           categories={categories}
-          covers={covers}
           onAddProduct={handleAddProduct}
           onUpdateProduct={handleUpdateProduct}
           onDeleteProduct={handleDeleteProduct}
@@ -575,7 +585,6 @@ export default function App() {
           onAddCategory={handleAddCategory}
           onUpdateCategory={handleUpdateCategory}
           onDeleteCategory={handleDeleteCategory}
-          onUpdateCovers={handleUpdateCovers}
           onClose={handleCloseAdmin}
         />
       </div>
@@ -625,35 +634,35 @@ export default function App() {
               transition={{ duration: 0.5 }}
               className="max-w-7xl mx-auto px-6 py-8 md:py-12 w-full flex flex-col justify-center"
             >
-              {/* Dynamic Showcase Grid */}
-              <div className={`grid grid-cols-1 ${categories.length === 2 ? 'md:grid-cols-2 max-w-4xl' : categories.length >= 3 ? 'md:grid-cols-3 max-w-6xl' : 'max-w-md'} gap-6 md:gap-8 lg:gap-10 mx-auto w-full items-stretch`}>
-                {categories.map((cat) => {
-                  const title = language === 'en' && cat.titleEn 
-                    ? cat.titleEn 
+              {/* Dynamic Showcase Grid
+                  Kategori sayısına göre düzen:
+                    1 → tek kart · 2 → iki sütun · 4 → tablette 2×2, geniş ekranda 4 sütun
+                    3 ve diğerleri → üç sütun; son satırda kalan kartlar ORTALANIR
+                  (Ortalamak için 6 sütunlu ızgara, her kart 2 sütun kaplar.) */}
+              <div className={`grid grid-cols-1 ${vitrinDuzeni.kapsayici} gap-6 md:gap-8 lg:gap-10 mx-auto w-full items-stretch`}>
+                {categories.map((cat, sira) => {
+                  const title = language === 'en' && cat.titleEn
+                    ? cat.titleEn
                     : (cat.title || (cat.id === 'houte-couture' ? t('cat.hc.title') : cat.id === 'seramik' ? t('cat.ceramic.title') : cat.id === 'ev-to-home' ? t('cat.home.title') : cat.id));
-                  
-                  const subtitle = language === 'en' && cat.subtitleEn 
-                    ? cat.subtitleEn 
+
+                  const subtitle = language === 'en' && cat.subtitleEn
+                    ? cat.subtitleEn
                     : (cat.subtitle !== undefined ? cat.subtitle : (cat.id === 'houte-couture' ? t('cat.hc.subtitle') : cat.id === 'seramik' ? t('cat.ceramic.subtitle') : cat.id === 'ev-to-home' ? t('cat.home.subtitle') : ''));
 
-                  const image = cat.id === 'houte-couture' 
-                    ? covers.hauteCoutureCover 
-                    : cat.id === 'seramik' 
-                    ? covers.ceramicCover 
-                    : cat.id === 'ev-to-home' 
-                    ? covers.homeCover 
-                    : (cat.image || '/images/ceramic-cover.jpg');
+                  // Tek kaynak: kategorinin kendi vitrin görseli (panelden düzenlenen)
+                  const image = cat.image || '/images/ceramic-cover.jpg';
 
                   return (
-                    <CategoryCard
-                      key={cat.id}
-                      id={cat.id}
-                      title={title}
-                      subtitle={subtitle}
-                      image={image}
-                      itemCount={yukleniyor ? undefined : getCategoryCount(cat.id)}
-                      onSelect={(selectedId) => handleSelectCategory(selectedId)}
-                    />
+                    <div key={cat.id} className={`flex ${vitrinDuzeni.kart(sira)}`}>
+                      <CategoryCard
+                        id={cat.id}
+                        title={title}
+                        subtitle={subtitle}
+                        image={image}
+                        itemCount={yukleniyor ? undefined : getCategoryCount(cat.id)}
+                        onSelect={(selectedId) => handleSelectCategory(selectedId)}
+                      />
+                    </div>
                   );
                 })}
               </div>
@@ -710,6 +719,7 @@ export default function App() {
         {selectedProduct && (
           <ProductDetailModal
             product={selectedProduct}
+            kategoriAdi={kategoriAdi(selectedProduct.category)}
             onClose={handleCloseProduct}
             onAddToCart={handleAddToCart}
           />
