@@ -64,24 +64,44 @@ Bu projede geçmişte veri kaybı riski yaşandı. Aşağıdakiler tartışmaya 
 
 ```
 didi-home/
-├─ api/                    Vercel sunucu fonksiyonları (API anahtarları burada kalır)
-├─ backups/                Canlı veri yedekleri (git'e gönderilmez)
+├─ api/                         Vercel sunucu fonksiyonları (gizli anahtarlar yalnızca burada)
+│  ├─ keepalive.ts              Supabase'in uykuya dalmasını önler (3 günde bir, vercel.json → crons)
+│  └─ translate.ts              Otomatik İngilizce çeviri (OpenRouter, yalnızca yönetici)
+├─ backups/                     Canlı veri yedekleri (git'e gönderilmez)
 ├─ docs/
-│  └─ glossary.md          Marka terim sözlüğü (çeviri ve metinler için)
-├─ public/images/          Statik görseller (kapaklar, ilk ürün fotoğrafları)
-├─ scripts/                Tek seferlik bakım/taşıma betikleri
-├─ sql/                    Supabase şema ve güvenlik kuralları (sırayla çalıştırılır)
+│  └─ glossary.md               Çeviri sözlüğü (shared/ceviriSozlugu.ts'ten üretilir)
+├─ public/
+│  ├─ images/                   Statik görseller (ilk ürünler ve varsayılan kapaklar)
+│  ├─ robots.txt
+│  └─ sitemap.xml               Her derlemede otomatik üretilir
+├─ scripts/
+│  ├─ run-sql.mjs               SQL dosyası çalıştırıcı (Supabase paneline girmeden)
+│  ├─ migrate-store-data.mjs    [tamamlandı] Eski tek-JSON → tablolar
+│  ├─ migrate-images-to-storage.mjs  [tamamlandı] Base64 fotoğraflar → Storage
+│  ├─ generate-sitemap.mjs      Site haritası üretici (npm run build öncesi otomatik)
+│  └─ generate-glossary-doc.ts  docs/glossary.md üretici
+├─ shared/                      Tarayıcı ve sunucunun ortak kullandığı kod
+│  ├─ yoneticiler.ts            Yönetici e-posta listesi (TEK KAYNAK)
+│  └─ ceviriSozlugu.ts          Marka terimleri ve çeviri üslubu (TEK KAYNAK)
+├─ sql/                         Veritabanı değişiklikleri, numara sırasıyla
 ├─ src/
-│  ├─ components/          Arayüz bileşenleri (AdminLogin.tsx: yönetici girişi)
-│  ├─ context/             Dil (TR/EN) sağlayıcısı
-│  ├─ hooks/               Ortak davranışlar (useModalBehavior: ESC, kaydırma kilidi)
-│  ├─ auth.ts              Yönetici girişi (Supabase Auth)
-│  ├─ orders.ts            Sipariş akışı (WhatsApp + veritabanı kaydı)
-│  ├─ store.ts             Veri erişim katmanı (tüm okuma/yazma buradan)
-│  ├─ supabase.ts          Supabase istemcisi
-│  └─ types.ts             Tip tanımları
-├─ PROJECT.md              ← bu dosya
-└─ README.md               Kısa kurulum notu
+│  ├─ components/
+│  │  ├─ AdminPanel.tsx         Yönetim paneli (ayrı dosya olarak tembel yüklenir)
+│  │  ├─ AdminLogin.tsx         Yönetici girişi / hesap oluşturma / şifre sıfırlama
+│  │  ├─ AdminOrders.tsx        Siparişler sekmesi
+│  │  └─ ...                    Mağaza bileşenleri (tasarım korunuyor)
+│  ├─ context/LanguageContext   TR/EN arayüz metinleri; ürün EN metinleri veritabanından
+│  ├─ hooks/useModalBehavior    Pencerelerde ESC ve arka plan kaydırma kilidi
+│  ├─ auth.ts                   Supabase Auth işlemleri
+│  ├─ images.ts                 Görsel küçültme (1200×1600) ve Storage'a yükleme
+│  ├─ orders.ts                 Sipariş: WhatsApp mesajı + veritabanı kaydı
+│  ├─ store.ts                  Veri erişim katmanı (TÜM okuma/yazma buradan)
+│  ├─ supabase.ts               Supabase istemcisi
+│  ├─ translate.ts              Çeviri istemcisi (api/translate'i çağırır)
+│  └─ types.ts                  Tip tanımları
+├─ vercel.json                  Yönlendirmeler, zamanlanmış görev, önbellek başlıkları
+├─ PROJECT.md                   ← bu dosya
+└─ README.md                    Kısa kurulum notu
 ```
 
 ---
@@ -90,9 +110,13 @@ didi-home/
 
 ```bash
 npm install
-npm run dev      # http://localhost:3000
-npm run build    # üretim derlemesi
+npm run dev      # http://localhost:3000  (api/ fonksiyonları yerelde ÇALIŞMAZ; çeviri yalnızca yayında)
+npm run build    # önce site haritasını üretir, sonra derler
 npm run lint     # TypeScript tip kontrolü
+
+# Veritabanı (gerekli: .env.local → SUPABASE_DB_URL)
+node scripts/run-sql.mjs --test              # bağlantı testi, tabloları listeler
+node scripts/run-sql.mjs sql/DOSYA.sql       # SQL dosyası çalıştır
 ```
 
 ### Ortam değişkenleri
@@ -123,16 +147,26 @@ Tablo **silinmedi**, arşiv olarak duruyor (bkz. Süreç günlüğü).
 
 ### Güncel yapı (2026-09-16'dan itibaren)
 
-- `products` — ürün başına bir satır (`id`, `title`, `category_id`, `price`,
-  `story`, `images[]`, `status` (taslak/yayında/satıldı), `sort_order`,
-  `deleted_at`, `updated_at`, İngilizce alanlar)
-- `categories` — kategori başına bir satır
-- `settings` — kapak görselleri gibi genel ayarlar
-- `orders` — gelen siparişler
-- `revisions` — her değişiklikten önceki hali saklayan otomatik sürüm geçmişi
-- Fotoğraflar (Aşama 3 hedefi) `product-images` adlı Supabase Storage klasöründe;
-  veritabanında yalnızca adresleri durur. **Şu an** eski ürünlerin bir kısmının
-  fotoğrafları hâlâ base64 olarak `images` sütununda.
+| Tablo | İçerik | Not |
+|---|---|---|
+| `products` | Ürün başına bir satır | `status`: taslak / yayinda / satildi · `deleted_at`: çöp kutusu · `sort_order` · `*_en` İngilizce alanlar · `images[]`: Storage adresleri |
+| `categories` | Kategori başına bir satır | `image`: ana sayfa vitrin görseli (**tek kaynak**) · `subcategories[]` |
+| `orders` | Siparişler | `siparis_no` (DH-YYYYAAGG-XXX, WhatsApp mesajıyla aynı) · `status` |
+| `revisions` | Otomatik sürüm geçmişi | products/categories her güncellenip silindiğinde **önceki hal** buraya yazılır |
+| `settings` | Genel ayarlar | `covers` anahtarı artık kullanılmıyor (vitrin görselleri categories.image'a taşındı) |
+| `store_data` | ARŞİV | Eski tek-JSON yapı; API erişimi kapalı, yedek olarak duruyor |
+
+**Fotoğraflar:** Supabase Storage → `gorseller` deposu.
+Klasörler: `urunler/YYYY-AA/`, `vitrin/YYYY-AA/`, `tasima-2026-09-16/` (eski base64'lerden taşınanlar).
+Veritabanında yalnızca herkese açık adresleri durur. Panel yüklemeden önce görseli en fazla
+1200 × 1600 piksele (3:4) küçültür.
+
+**Sürüm geçmişinden geri dönmek** (şimdilik panelde yok, SQL ile):
+```sql
+-- Bir ürünün geçmiş halleri, en yenisi üstte
+select id, action, changed_at, data->>'title' as baslik, data->>'price' as fiyat
+from revisions where table_name = 'products' and row_id = 'URUN_ID' order by changed_at desc;
+```
 
 ### Güvenlik kuralları özeti (`sql/02_security.sql`)
 
@@ -142,8 +176,11 @@ Tablo **silinmedi**, arşiv olarak duruyor (bkz. Süreç günlüğü).
 | Yönetici (`is_admin()`) | Okur, ekler, günceller | Okur, günceller | Okur |
 | Herkes | **Kalıcı silme yok** (DELETE kuralı tanımlı değil) | Silme yok | — |
 
+Depo (`gorseller`): herkes görüntüler, yalnızca yönetici yükler, API'den silme yok.
+
 Yönetici listesi iki yerde tutulur ve **ikisi birlikte** güncellenmelidir:
-`src/auth.ts → YONETICI_EPOSTALARI` (arayüz) ve `sql/02_security.sql → is_admin()` (asıl koruma).
+`shared/yoneticiler.ts` (arayüz + çeviri fonksiyonu) ve `sql/02_security.sql → is_admin()` (asıl koruma;
+değiştirdikten sonra `node scripts/run-sql.mjs sql/02_security.sql`).
 
 ### SQL dosyaları (sırayla)
 
@@ -152,7 +189,13 @@ Yönetici listesi iki yerde tutulur ve **ikisi birlikte** güncellenmelidir:
 | `sql/01_schema.sql` | Tablolar, tetikleyiciler, sürüm geçmişi | ✅ Çalıştırıldı |
 | `sql/02_security.sql` | RLS kuralları, `is_admin()` | ✅ Çalıştırıldı |
 | `sql/03_archive_store_data.sql` | Eski tabloyu API'ye tamamen kapatır | ⏳ Yeni kod yayına alınınca **tekrar** çalıştırılacak |
-| `sql/03b_store_data_readonly_until_deploy.sql` | GEÇİCİ: canlı eski kod için salt okuma | ✅ Şu an etkin |
+| `sql/03b_store_data_readonly_until_deploy.sql` | GEÇİCİ: canlı eski kod için salt okuma | ⏳ Yayından sonra 03 ile kaldırılacak |
+| `sql/04_unify_showcase_images.sql` | Vitrin görselini categories.image'da topladı | ✅ Çalıştırıldı |
+| `sql/05_storage.sql` | `gorseller` deposu ve kuralları | ✅ Çalıştırıldı |
+| `sql/06_orders_no.sql` | Siparişlere `siparis_no` sütunu | ✅ Çalıştırıldı |
+
+**Yeni SQL eklerken:** bir sonraki numarayla dosya oluşturun, tekrar çalıştırılabilir yazın
+(`if not exists`, `drop policy if exists`), çalıştırın ve bu tabloya ekleyin.
 
 Çalıştırma: `node scripts/run-sql.mjs sql/DOSYA.sql` (`.env.local` içinde `SUPABASE_DB_URL` gerekir).
 
@@ -160,15 +203,22 @@ Yönetici listesi iki yerde tutulur ve **ikisi birlikte** güncellenmelidir:
 
 ## 7. Aşama planı
 
-- [x] **Aşama 0 — Güvenlik ve acil düzeltmeler** _(tamamlandı: 2026-09-16)_
-- [x] **Aşama 1 — Veri modeli ve veri kaybı korumaları** _(tamamlandı: 2026-09-16)_
-- [~] **Aşama 2 — Gerçek yönetici girişi (Supabase Auth + RLS)** — kod ve RLS hazır; yönetici hesabı oluşturulacak, yeni kod yayına alınacak
-- [ ] **Aşama 3 — Fotoğraf altyapısı (Storage) ve panel ölçü rehberi**
-- [~] **Aşama 4 — Sipariş akışı (kayıt + WhatsApp)** — WhatsApp tarafı çalışıyor, kayıt tabloyu bekliyor
-- [ ] **Aşama 5 — Otomatik İngilizce çeviri (OpenRouter + terim sözlüğü)**
-- [ ] **Aşama 6 — SEO, performans ve kod temizliği**
+- [x] **Aşama 0 — Güvenlik ve acil düzeltmeler**
+- [x] **Aşama 1 — Veri modeli ve veri kaybı korumaları**
+- [x] **Aşama 2 — Gerçek yönetici girişi (Supabase Auth + RLS)** — kod hazır; yönetici hesabı yayından sonra oluşturulacak
+- [x] **Aşama 3 — Fotoğraf altyapısı (Storage) ve panel ölçü rehberi**
+- [x] **Aşama 4 — Sipariş akışı (WhatsApp + kayıt + panelde Siparişler)**
+- [x] **Aşama 5 — Otomatik İngilizce çeviri** — altyapı hazır; OpenRouter anahtarı eklenince etkinleşir
+- [x] **Aşama 6 — Hız, SEO, Supabase uyku önleyici, kod temizliği**
+- [ ] **Yayın** — bkz. Bölüm 11
 
-Her aşamanın ayrıntısı ve sonucu aşağıdaki günlükte.
+### Gelecekte değerlendirilebilecekler
+
+- Paylaşılan ürün bağlantılarında ürüne özel önizleme görseli (WhatsApp/Instagram tarayıcıları
+  JavaScript çalıştırmaz; Vercel Middleware ile sunucu tarafında meta etiketi gerekir).
+- Sürüm geçmişinden panelden tek tıkla geri dönme ekranı.
+- Ödeme altyapısı gerekirse satışın ikas / Shopier / Shopify'a taşınması; bu site vitrin olarak kalır.
+- Yeni sipariş gelince e-posta bildirimi (şu an WhatsApp mesajı bildirim görevi görüyor).
 
 ---
 
@@ -406,6 +456,48 @@ açıldı; yeni giriş ekranında hatalı giriş Türkçe hata verdi.
 5. Veritabanı şifresi sohbet kaydında geçtiği için, veritabanı işleri bitince sıfırlanacak
    ve `.env.local` güncellenecek.
 
+### 2026-09-16 — Kategori pürüzleri, Aşama 3, 4, 5, 6
+
+**Kategori pürüzleri**
+- Ana sayfa vitrin görseli `settings.covers`'tan, panel ise `categories.image`'dan okuyordu;
+  3 kategoriden 2'sinde değerler farklıydı. `sql/04` ile tek kaynak `categories.image` yapıldı
+  (değer olarak ziyaretçinin o an gördüğü görsel alındı; eski değerler revisions'a yazıldı).
+  "Kapak Fotoğrafları" sekmesi artık kategorilerden üretiliyor.
+- Ana sayfa ızgarası kategori sayısına göre: 4 → 2×2 / 4 sütun; diğerlerinde son satır ortalanıyor.
+- Ürün sayfasında yeni kategoriler kod yerine adla görünüyor.
+
+**Aşama 3 — Storage**
+- `gorseller` deposu (`sql/05`), `src/images.ts` ile yüklemeler depoya gidiyor.
+- `scripts/migrate-images-to-storage.mjs`: 19 kullanımdaki 14 benzersiz gömülü görsel orijinal
+  baytlarıyla yüklendi, adreslerinden indirilip birebir doğrulandı, veritabanı tek transaction'da
+  güncellendi. Servis anahtarı kullanmamak için yalnızca taşıma klasörüne ekleme izni veren
+  geçici bir kural açılıp hemen kaldırıldı.
+- **Ölçüm:** ziyaretçinin indirdiği veri 5.636.327 bayt → ~10 KB; süre 3,9 sn → 0,5 sn.
+
+**Aşama 4 — Siparişler sekmesi**
+- `sql/06`: `siparis_no` sütunu. `AdminOrders.tsx`: liste, durum filtresi, durum güncelleme,
+  müşteriye telefon / e-posta / WhatsApp bağlantısı, yeni sipariş rozeti.
+
+**Aşama 6 — Hız ve SEO**
+- Yönetim paneli ayrı dosyaya bölündü (ziyaretçi 97 KB daha az indiriyor).
+- Görsellerde tembel yükleme; sekme başlığı ve meta açıklama ürüne/kategoriye göre.
+- Her derlemede `public/sitemap.xml` üretiliyor.
+- `api/keepalive.ts` + Vercel cron (3 günde bir): Supabase ücretsiz paketinde 7 günlük
+  hareketsizlikte proje uyutulmasın.
+- Kullanılmayan `HomeDesignModal.tsx` silindi.
+
+**Aşama 5 — Çeviri**
+- `api/translate.ts` (yalnızca yönetici, anahtar sunucuda), `shared/ceviriSozlugu.ts` (47 terim),
+  panelde EN alanları, "Türkçeden çevir", kaydederken otomatik çeviri, toplu "EN çevirisi eksik".
+- Koda gömülü eski ürün çeviri tablosu kaldırıldı (panel düzenlemelerini eziyordu).
+  **Not:** mevcut ürünlerin İngilizce metinleri anahtar eklenince toplu çeviriyle oluşturulacak;
+  o zamana kadar İngilizce seçen ziyaretçi ürünlerin Türkçesini görür.
+- Yerel testler: anahtar yok → 503, giriş yok → 401, sahte oturum → 401.
+
+**Araç notu:** Tarayıcı paneli arka planda kaldığında animasyon kareleri durduğu için sayfa
+boş görünebiliyor (`requestAnimationFrame` 0 kare). Bu bir kod hatası değil; doğrulamalar
+DOM ve ağ üzerinden yapıldı.
+
 ---
 
 ## 9. Alınan kararlar
@@ -426,14 +518,62 @@ açıldı; yeni giriş ekranında hatalı giriş Türkçe hata verdi.
 | 2026-09-16 | API üzerinden kalıcı silme tamamen kapalı | Altın kural 5'i veritabanı seviyesinde garanti etmek |
 | 2026-09-16 | Çöp kutusu süresiz saklar | Otomatik temizleme, fark edilmeyen veri kaybına yol açabilir |
 | 2026-09-16 | Ürünler tarayıcıda önbelleğe alınmaz | Kota dolunca sahte ürün gösterme hatasının kökünü kesmek |
+| 2026-09-16 | Vitrin görselinin tek kaynağı categories.image | İki ayrı kaynak, panel değişikliğinin siteye yansımamasına yol açıyordu |
+| 2026-09-16 | Görseller yüklenmeden önce 1200×1600'e küçültülür | Hız; 3:4 standardı; depolama kotası |
+| 2026-09-16 | Depodan API ile dosya silinemez | Silinen ürün çöp kutusundan geri geldiğinde fotoğrafı da yerinde olsun |
+| 2026-09-16 | Çeviri yalnızca yönetici oturumuyla çağrılabilir | Herkese açık uç noktada başkaları OpenRouter kredisini harcayabilirdi |
+| 2026-09-16 | Yönetici listesi ve çeviri sözlüğü shared/ klasöründe tek kaynak | Tarayıcı ve sunucu aynı listeyi kullansın |
 
 ---
 
 ## 10. Yeni bir geliştirici / asistan için hızlı başlangıç
 
-1. Bu dosyanın tamamını oku; özellikle **Altın kurallar** bölümünü.
+1. Bu dosyanın tamamını oku; özellikle **Altın kurallar** (Bölüm 2).
 2. `npm install && npm run dev` ile projeyi ayağa kaldır.
-3. Canlı veriyi değiştiren bir işe başlamadan önce `backups/` klasörüne yedek al.
-4. Tasarıma (renk, yazı tipi, düzen, animasyon) dokunma.
-5. İşi bitirince **Süreç günlüğü** ve **Aşama planı** bölümlerini güncelle,
-   sonra tek ve açıklayıcı bir commit at.
+3. Veritabanı işi için `.env.local` içinde `SUPABASE_DB_URL` gerekir; bağlantıyı
+   `node scripts/run-sql.mjs --test` ile doğrula.
+4. Canlı veriyi değiştiren bir işe başlamadan önce `backups/` klasörüne yedek al.
+5. **Canlı sitenin hangi kod sürümünde olduğunu kontrol etmeden** onun kullandığı bir
+   tabloya/kurala dokunma (2026-09-16'daki olaydan ders).
+6. Tasarıma (renk, yazı tipi, düzen, animasyon) dokunma. Görseller dikey 3:4.
+7. Kod değiştirdikten sonra: `npm run lint` ve `npm run build` temiz olmalı.
+8. İşi bitirince **Süreç günlüğü**, **Aşama planı** ve gerekirse **SQL dosyaları** tablosunu
+   güncelle, açıklayıcı bir commit at.
+
+---
+
+## 11. Yayın (deploy) ve sonrası kontrol listesi
+
+Yayın, GitHub'daki `main` dalına gönderilen commit'lerle Vercel tarafından otomatik yapılır.
+
+**Yayından hemen sonra**
+- [ ] didihome.store açılıyor, 3 kategori ve ürünler görünüyor
+- [ ] `/api/keepalive` → `{"tamam":true}`
+- [ ] `/sitemap.xml` açılıyor
+- [ ] Canlıdaki kod yeni sürüm (eski `store_data`'yı artık okumuyor)
+- [ ] `node scripts/run-sql.mjs sql/03_archive_store_data.sql` → eski tablonun geçici okuma izni kaldırılır
+
+**Kullanıcının yapacakları**
+- [ ] Supabase → Authentication → URL Configuration: Site URL `https://didihome.store`,
+      Redirect URLs `https://didihome.store/**` ve `http://localhost:3000/**`
+- [ ] `didihome.store/admin` → "Hesap oluşturun" → e-postadaki onay bağlantısı
+- [ ] Panelde bir ürünü düzenleyip kaydederek yazma yetkisini doğrulama
+- [ ] OpenRouter anahtarı: Vercel → Settings → Environment Variables → `OPENROUTER_API_KEY`
+      (+ isteğe bağlı `OPENROUTER_MODEL`), ardından Vercel'de yeniden yayın (Redeploy)
+- [ ] Panelde "EN çevirisi eksik" düğmesiyle mevcut ürünleri çevirme
+- [ ] Sohbette paylaşılan veritabanı şifresini sıfırlama ve `.env.local`'ı güncelleme
+
+## 12. Günlük kullanım (yönetici için)
+
+| İş | Nerede |
+|---|---|
+| Ürün ekle / düzenle | Panel → Ürün Yönetimi → Yeni Ürün Ekle / kalem simgesi |
+| Ürünü gizle ama silme | Ürün formu → Yayın durumu → **Taslak** |
+| Satılan ürünü işaretle | Ürün formu → Yayın durumu → **Satıldı** |
+| Silinen ürünü geri getir | Panel → **Çöp Kutusu** → Geri Getir |
+| Sıralamayı değiştir | Ürün listesinde sürükle-bırak ya da oklar |
+| Kategori / alt başlık ekle | Panel → Kategori Yönetimi |
+| Ana sayfa vitrin görseli | Panel → Kapak Fotoğrafları (ya da kategori düzenleme penceresi — aynı değer) |
+| Siparişleri takip et | Panel → **Siparişler** (WhatsApp'a gelen DH-... numarasıyla eşleşir) |
+| Tüm kataloğun yedeği | Panel üst çubuk → **Yedek İndir** |
+| Görsel ölçüsü | Dikey **3:4**, ideal 1200 × 1600 piksel |

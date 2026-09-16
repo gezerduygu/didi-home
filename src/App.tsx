@@ -105,14 +105,15 @@ export default function App() {
   // Geri tuşu işleyicisi için ürünlerin güncel kopyası (kapanış değişkeni tuzağını önler)
   const productsRef = useRef<Product[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>(() => onbellektenOku('didi_cache_categories', []));
-  const [activeCategory, setActiveCategory] = useState<Category | null>(null);
+  // İlk çizimde adresten okunur: paylaşılan kategori/ürün bağlantısında ana sayfa bir an görünüp kaybolmasın
+  const [activeCategory, setActiveCategory] = useState<Category | null>(() => parseUrlState().category);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   
   // Modal / Drawer control states
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(() => parseUrlState().isAdminOpen);
   const [notification, setNotification] = useState<string | null>(null);
 
   // Veri yükleme durumu
