@@ -35,7 +35,8 @@ import {
   Undo2
 } from 'lucide-react';
 import { Product, Category, CategoryItem, ProductStatus } from '../types';
-import { listDeletedProducts, exportAll } from '../store';
+import { listDeletedProducts, exportAll, StoreError } from '../store';
+import { gorselYukle } from '../images';
 import { cikisYap } from '../auth';
 import AdminLogin from './AdminLogin';
 import { useLanguage } from '../context/LanguageContext';
@@ -94,46 +95,13 @@ const VARSAYILAN_VITRIN: Record<string, string> = {
   'ev-to-home': '/images/ev-illustration.jpg'
 };
 
-const compressCoverImage = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const MAX_DIMENSION = 1600;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_DIMENSION) {
-            height *= MAX_DIMENSION / width;
-            width = MAX_DIMENSION;
-          }
-        } else {
-          if (height > MAX_DIMENSION) {
-            width *= MAX_DIMENSION / height;
-            height = MAX_DIMENSION;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.85));
-        } else {
-          resolve(event.target?.result as string);
-        }
-      };
-      img.onerror = () => resolve(event.target?.result as string);
-    };
-    reader.onerror = reject;
-  });
-};
+/** Kullanıcıya gösterilecek yükleme hata metni */
+const yuklemeHatasi = (err: unknown, dil: 'tr' | 'en') =>
+  err instanceof StoreError
+    ? err.message
+    : dil === 'tr'
+      ? 'Görsel yüklenirken bir hata oluştu. İnternet bağlantınızı kontrol edip tekrar deneyin.'
+      : 'An error occurred while uploading. Check your connection and try again.';
 
 const PRESET_IMAGES: Record<Category, { url: string; label: string }[]> = {
   'houte-couture': [
@@ -154,53 +122,6 @@ const PRESET_IMAGES: Record<Category, { url: string; label: string }[]> = {
     { url: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?q=80&w=600', label: 'Vintage Table' },
     { url: 'https://images.unsplash.com/photo-1532372320978-9b4d7a92b24d?q=80&w=600', label: 'Dried Florals' }
   ]
-};
-
-const compressImage = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const MAX_WIDTH_LIMIT = 1200; // 3:4 icin ideal genislik
-        const MAX_HEIGHT_LIMIT = 1600; // 1200 x 1600 = 3:4
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH_LIMIT) {
-            height = Math.round(height * (MAX_WIDTH_LIMIT / width));
-            width = MAX_WIDTH_LIMIT;
-          }
-        } else {
-          if (height > MAX_HEIGHT_LIMIT) {
-            width = Math.round(width * (MAX_HEIGHT_LIMIT / height));
-            height = MAX_HEIGHT_LIMIT;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.88));
-        } else {
-          resolve(event.target?.result as string);
-        }
-      };
-      img.onerror = () => {
-        // Safe fallback to uncompressed original if canvas rendering or image loading fails
-        resolve(event.target?.result as string);
-      };
-    };
-    reader.onerror = (err) => {
-      reject(err);
-    };
-  });
 };
 
 /**
@@ -443,11 +364,11 @@ export default function AdminPanel({
   const handleCatImageUpload = async (file: File) => {
     try {
       setIsCatUploading(true);
-      const compressed = await compressCoverImage(file);
-      setCatFormImage(compressed);
+      const adres = await gorselYukle(file, 'vitrin');
+      setCatFormImage(adres);
     } catch (e) {
-      console.error('Failed to compress category image', e);
-      setCatError(language === 'tr' ? 'Görsel yüklenemedi.' : 'Failed to upload image.');
+      console.error('Kategori görseli yüklenemedi', e);
+      setCatError(yuklemeHatasi(e, language));
     } finally {
       setIsCatUploading(false);
     }
@@ -519,11 +440,11 @@ export default function AdminPanel({
   const handleCoverUpload = async (katId: string, file: File) => {
     try {
       setCoverLoadingKey(katId);
-      const compressed = await compressCoverImage(file);
-      await vitrinGorseliKaydet(katId, compressed);
+      const adres = await gorselYukle(file, 'vitrin');
+      await vitrinGorseliKaydet(katId, adres);
     } catch (err) {
-      console.error('Cover upload failed', err);
-      alert(language === 'tr' ? 'Görsel yüklenirken bir hata oluştu.' : 'Failed to upload image.');
+      console.error('Vitrin görseli yüklenemedi', err);
+      alert(yuklemeHatasi(err, language));
       setCoverLoadingKey(null);
     }
   };
@@ -617,19 +538,20 @@ export default function AdminPanel({
     setIsUploading(true);
     setUploadError('');
 
+    // Fotoğraflar sırayla yüklenir; biri başarısız olsa bile diğerleri kaybolmaz.
+    const hatalar: string[] = [];
     try {
-      const compressedImages = await Promise.all(
-        imageFiles.map(file => compressImage(file))
-      );
-      setFormImages(prev => [...prev, ...compressedImages]);
-      setFormPresetIndex(null);
-    } catch (err) {
-      console.error('Görsel işleme hatası:', err);
-      setUploadError(
-        language === 'tr'
-          ? 'Görseller yüklenirken bir hata oluştu.'
-          : 'An error occurred while uploading the images.'
-      );
+      for (const file of imageFiles) {
+        try {
+          const adres = await gorselYukle(file, 'urunler');
+          setFormImages(prev => [...prev, adres]);
+          setFormPresetIndex(null);
+        } catch (err) {
+          console.error('Görsel yüklenemedi:', file.name, err);
+          hatalar.push(`${file.name}: ${yuklemeHatasi(err, language)}`);
+        }
+      }
+      if (hatalar.length > 0) setUploadError(hatalar.join(' · '));
     } finally {
       setIsUploading(false);
     }
@@ -664,19 +586,20 @@ export default function AdminPanel({
     setIsUploading(true);
     setUploadError('');
 
+    // Fotoğraflar sırayla yüklenir; biri başarısız olsa bile diğerleri kaybolmaz.
+    const hatalar: string[] = [];
     try {
-      const compressedImages = await Promise.all(
-        imageFiles.map(file => compressImage(file))
-      );
-      setFormImages(prev => [...prev, ...compressedImages]);
-      setFormPresetIndex(null);
-    } catch (err) {
-      console.error('Görsel işleme hatası:', err);
-      setUploadError(
-        language === 'tr'
-          ? 'Görseller yüklenirken bir hata oluştu.'
-          : 'An error occurred while uploading the images.'
-      );
+      for (const file of imageFiles) {
+        try {
+          const adres = await gorselYukle(file, 'urunler');
+          setFormImages(prev => [...prev, adres]);
+          setFormPresetIndex(null);
+        } catch (err) {
+          console.error('Görsel yüklenemedi:', file.name, err);
+          hatalar.push(`${file.name}: ${yuklemeHatasi(err, language)}`);
+        }
+      }
+      if (hatalar.length > 0) setUploadError(hatalar.join(' · '));
     } finally {
       setIsUploading(false);
     }
@@ -2388,7 +2311,7 @@ export default function AdminPanel({
                           <div className="flex flex-col items-center gap-2">
                             <Loader2 className="animate-spin text-brand-terracotta" size={24} />
                             <span className="text-brand-warmgray tracking-wide">
-                              {language === 'tr' ? 'Fotoğraflar işleniyor ve sıkıştırılıyor...' : 'Processing and compressing images...'}
+                              {language === 'tr' ? 'Fotoğraflar küçültülüp yükleniyor...' : 'Resizing and uploading images...'}
                             </span>
                           </div>
                         ) : (
