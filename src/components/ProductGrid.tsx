@@ -240,7 +240,7 @@ export default function ProductGrid({
                 whileHover={{ y: -4 }}
               >
                 {/* Product Image */}
-                <div className="relative overflow-hidden aspect-[4/5] rounded-[1px] bg-brand-sand/50 shadow-sm border border-brand-sand/30">
+                <div className="relative overflow-hidden aspect-[3/4] rounded-[1px] bg-brand-sand/50 shadow-sm border border-brand-sand/30">
                   <img
                     src={product.image}
                     alt={product.title}

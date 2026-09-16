@@ -89,7 +89,7 @@ const compressCoverImage = (file: File): Promise<string> => {
       const img = new Image();
       img.src = event.target?.result as string;
       img.onload = () => {
-        const MAX_DIMENSION = 1400;
+        const MAX_DIMENSION = 1600;
         let width = img.width;
         let height = img.height;
 
@@ -151,8 +151,8 @@ const compressImage = (file: File): Promise<string> => {
       const img = new Image();
       img.src = event.target?.result as string;
       img.onload = () => {
-        const MAX_WIDTH_LIMIT = 1200;
-        const MAX_HEIGHT_LIMIT = 1500;
+        const MAX_WIDTH_LIMIT = 1200; // 3:4 icin ideal genislik
+        const MAX_HEIGHT_LIMIT = 1600; // 1200 x 1600 = 3:4
         let width = img.width;
         let height = img.height;
 
@@ -189,6 +189,52 @@ const compressImage = (file: File): Promise<string> => {
     };
   });
 };
+
+/**
+ * Görsel oran rehberi.
+ * Üretim araçlarındaki 16:9 / 4:3 / 1:1 / 3:4 / 9:16 seçenekleriyle aynı dili konuşur.
+ * Sitenin kart düzeni dikey 3:4 üzerine kuruludur.
+ */
+const ORANLAR = [
+  { etiket: '16:9', g: 32, y: 18, tavsiye: 'kacinin' },
+  { etiket: '4:3', g: 27, y: 20, tavsiye: 'olur' },
+  { etiket: '1:1', g: 22, y: 22, tavsiye: 'olur' },
+  { etiket: '3:4', g: 18, y: 24, tavsiye: 'onerilen' },
+  { etiket: '9:16', g: 14, y: 25, tavsiye: 'kacinin' }
+] as const;
+
+function OranRehberi({ language }: { language: 'tr' | 'en' }) {
+  return (
+    <div className="flex items-end gap-3 flex-wrap mb-2.5">
+      {ORANLAR.map((o) => (
+        <div key={o.etiket} className="flex flex-col items-center gap-1">
+          <div
+            style={{ width: o.g, height: o.y }}
+            className={`rounded-[1px] border ${
+              o.tavsiye === 'onerilen'
+                ? 'border-brand-terracotta bg-brand-terracotta/20'
+                : o.tavsiye === 'olur'
+                ? 'border-brand-warmgray/50 bg-brand-sand/50'
+                : 'border-brand-sand border-dashed'
+            }`}
+          />
+          <span
+            className={`text-[9px] tracking-wide ${
+              o.tavsiye === 'onerilen' ? 'text-brand-terracotta font-semibold' : 'text-brand-warmgray/70'
+            }`}
+          >
+            {o.etiket}
+          </span>
+        </div>
+      ))}
+      <span className="text-[10px] text-brand-warmgray/80 leading-snug">
+        {language === 'tr'
+          ? 'Önerilen: 3:4 · Uyumlu: 1:1, 4:3 · Kaçının: 16:9, 9:16'
+          : 'Best: 3:4 · Works: 1:1, 4:3 · Avoid: 16:9, 9:16'}
+      </span>
+    </div>
+  );
+}
 
 export default function AdminPanel({
   products,
@@ -1152,7 +1198,7 @@ export default function AdminPanel({
 
                             {/* Image Thumbnail */}
                             <td className="py-3 px-4">
-                              <div className="w-10 h-12 bg-brand-sand/10 border border-brand-sand/30 rounded-[2px] overflow-hidden">
+                              <div className="w-9 h-12 bg-brand-sand/10 border border-brand-sand/30 rounded-[2px] overflow-hidden">
                                 <img
                                   src={prod.image}
                                   alt={prod.title}
@@ -1401,14 +1447,17 @@ export default function AdminPanel({
                     ? 'Ana sayfadaki ana vitrin kartlarının kapak görsellerini dilediğiniz zaman yükleyebilir, değiştirebilir veya hazır atölye fotoğraflarından seçebilirsiniz.'
                     : 'Easily customize the homepage category showcase cards anytime from your computer or curated presets.'}
                 </p>
-                <p className="text-[11px] text-brand-warmgray/90 mt-2 max-w-2xl font-light flex items-start gap-1.5">
-                  <Sparkles size={11} className="text-brand-terracotta shrink-0 mt-0.5" />
-                  <span>
-                    {language === 'tr'
-                      ? 'İdeal kapak ölçüsü: dikey 3:4 oran (örneğin 1200 × 1600 piksel). Vitrin kartlarında görselin alt kısmına yazı geldiği için ürünü üst-orta bölgede konumlandırın.'
-                      : 'Ideal cover size: vertical 3:4 ratio (e.g. 1200 × 1600 px). Text sits over the lower part of the card, so keep the subject in the upper-middle area.'}
-                  </span>
-                </p>
+                <div className="mt-3 max-w-2xl">
+                  <OranRehberi language={language} />
+                  <p className="text-[11px] text-brand-warmgray/90 font-light flex items-start gap-1.5">
+                    <Sparkles size={11} className="text-brand-terracotta shrink-0 mt-0.5" />
+                    <span>
+                      {language === 'tr'
+                        ? 'Vitrin kapakları dikey 3:4 oranında gösterilir; önerilen boyut 1200 × 1600 piksel. Kartın alt kısmına yazı ve gölge geldiği için ürünü üst-orta bölgede konumlandırın.'
+                        : 'Showcase covers are displayed in a vertical 3:4 frame; recommended size 1200 × 1600 px. Text and a gradient sit over the lower part, so keep the subject in the upper-middle area.'}
+                    </span>
+                  </p>
+                </div>
               </div>
 
             </div>
@@ -1889,7 +1938,7 @@ export default function AdminPanel({
                   </label>
                   
                   <div className="flex gap-3 items-center">
-                    <div className="w-16 h-20 bg-brand-sand/30 border border-brand-sand/60 rounded-[2px] overflow-hidden shrink-0 flex items-center justify-center">
+                    <div className="w-15 h-20 bg-brand-sand/30 border border-brand-sand/60 rounded-[2px] overflow-hidden shrink-0 flex items-center justify-center">
                       {catFormImage ? (
                         <img src={catFormImage} alt="Category Cover" className="w-full h-full object-cover" />
                       ) : (
@@ -2130,24 +2179,29 @@ export default function AdminPanel({
                   <div className="bg-brand-sand/20 border border-brand-sand/60 rounded-[2px] p-3 mb-4">
                     <div className="flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-brand-charcoal mb-2">
                       <Sparkles size={11} className="text-brand-terracotta" />
-                      <span>{language === 'tr' ? 'İDEAL FOTOĞRAF ÖLÇÜLERİ' : 'IDEAL PHOTO SPECS'}</span>
+                      <span>{language === 'tr' ? 'GÖRSEL ORANI VE ÖLÇÜLER' : 'IMAGE RATIO & SIZES'}</span>
                     </div>
+
+                    <OranRehberi language={language} />
+
                     <ul className="text-[11px] text-brand-warmgray font-light leading-relaxed space-y-1">
                       {(language === 'tr'
                         ? [
-                            'Dikey çekin: 4:5 oran (örneğin 1200 × 1500 piksel). Mağaza kartları bu orana göre kırpılır.',
-                            'En az 1000 piksel genişlik yeterlidir. Panel görseli otomatik küçültüp sıkıştırır, telefondan çekilen fotoğraflar sorunsuz çalışır.',
-                            'Ürünü kadrajın ortasına alın, kenarlarda bir miktar boşluk bırakın; kartlarda kenarlar kırpılabilir.',
-                            'Doğal gün ışığı ve sade, açık renkli arka plan en iyi sonucu verir.',
-                            'İlk fotoğraf kapak olur. En iyi kareyi sürükleyerek başa alabilirsiniz.',
+                            'Ürün fotoğrafları ve vitrin kapakları dikey 3:4 oranında gösterilir. Önerilen boyut: 1200 × 1600 piksel.',
+                            'Kare (1:1) ve yatay (4:3) fotoğraflar da yüklenebilir: ürün sayfasında tam görünür, kartlarda 3:4 çerçeveye kırpılır.',
+                            '16:9 ve 9:16 kartlarda çok kırpılır; zorunlu değilse kullanmayın.',
+                            'İlk fotoğraf kapak olur. En iyi 3:4 kareyi sürükleyerek başa alın.',
+                            'Ürünü kadrajın ortasına alın, kenarlarda pay bırakın. Doğal ışık ve sade açık arka plan en iyi sonucu verir.',
+                            'Panel, yüklediğiniz görseli otomatik olarak en fazla 1200 × 1600 piksele küçültüp sıkıştırır; telefon fotoğrafları sorunsuz çalışır.',
                             'Ürün başına 3-6 fotoğraf idealdir: genel görünüm, detay/doku, kullanım hali.'
                           ]
                         : [
-                            'Shoot vertically: 4:5 ratio (e.g. 1200 × 1500 px). Store cards are cropped to this ratio.',
-                            'At least 1000 px wide is enough. The panel resizes and compresses automatically, so phone photos work fine.',
-                            'Center the product and leave some margin; card edges may be cropped.',
-                            'Natural daylight and a plain, light background give the best result.',
-                            'The first photo becomes the cover. Drag your best shot to the first position.',
+                            'Product photos and showcase covers are displayed in a vertical 3:4 frame. Recommended size: 1200 × 1600 px.',
+                            'Square (1:1) and landscape (4:3) also work: shown in full on the product page, cropped to 3:4 on cards.',
+                            '16:9 and 9:16 get heavily cropped on cards; avoid them unless necessary.',
+                            'The first photo becomes the cover. Drag your best 3:4 shot to the first position.',
+                            'Center the product and leave some margin. Natural daylight and a plain, light background work best.',
+                            'The panel automatically resizes and compresses uploads to a maximum of 1200 × 1600 px; phone photos are fine.',
                             '3-6 photos per product is ideal: overall view, detail/texture, in use.'
                           ]
                       ).map((madde, i) => (
@@ -2225,7 +2279,7 @@ export default function AdminPanel({
                             setFormImages([preset.url]);
                             setFormPresetIndex(idx);
                           }}
-                          className={`relative aspect-[4/5] rounded-[2px] overflow-hidden border-2 transition-all ${
+                          className={`relative aspect-[3/4] rounded-[2px] overflow-hidden border-2 transition-all ${
                             formPresetIndex === idx
                               ? 'border-brand-terracotta scale-[0.98]'
                               : 'border-transparent hover:border-brand-sand'
@@ -2320,7 +2374,7 @@ export default function AdminPanel({
                                 onDragStart={(e) => handleItemDragStart(e as unknown as React.DragEvent, idx)}
                                 onDragOver={(e) => handleItemDragOver(e, idx)}
                                 onDragEnd={handleItemDragEnd}
-                                className={`relative aspect-[4/5] rounded-[2px] overflow-hidden border bg-brand-sand/10 group cursor-grab active:cursor-grabbing transition-all select-none ${
+                                className={`relative aspect-[3/4] rounded-[2px] overflow-hidden border bg-brand-sand/10 group cursor-grab active:cursor-grabbing transition-all select-none ${
                                   draggedIndex === idx 
                                     ? 'border-brand-terracotta opacity-40 shadow-inner scale-95' 
                                     : 'border-brand-sand hover:shadow-sm hover:border-brand-charcoal/40'

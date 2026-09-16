@@ -47,7 +47,7 @@ export default function HomeDesignModal({ isOpen, onClose, onExploreCollection, 
           </button>
 
           {/* Top Hero Banner - Real Stone House Photo */}
-          <div className="relative aspect-[16/9] sm:aspect-[21/9] w-full overflow-hidden bg-brand-charcoal">
+          <div className="relative aspect-[16/9] w-full overflow-hidden bg-brand-charcoal">
             <img
               src={bannerImage}
               alt={language === 'tr' ? 'Didi Home Ev Tasarımı & Mimari Atölye' : 'Didi Home Interior Architecture'}

@@ -204,7 +204,7 @@ export default function CartDrawer({
                                 src={translatedProd.image}
                                 alt={translatedProd.title}
                                 referrerPolicy="no-referrer"
-                                className="w-16 h-20 object-cover object-center rounded-[1px] bg-brand-sand/50 shadow-sm border border-brand-sand/25"
+                                className="w-15 h-20 object-cover object-center rounded-[1px] bg-brand-sand/50 shadow-sm border border-brand-sand/25"
                               />
                               <div className="flex-1 flex flex-col justify-between">
                                 <div>

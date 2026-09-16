@@ -264,6 +264,28 @@ Supabase paneline erişim beklenirken, veritabanı gerektirmeyen işler yapıld�
 3. Uygulama `src/store.ts` katmanına geçirilecek
 4. Panele çöp kutusu, taslak/satıldı durumu ve JSON yedek butonu eklenecek
 
+
+### 2026-09-16 — Görsel oranları standartlaştırıldı
+
+Görseller yapay zekâ araçlarıyla üretildiği için sitedeki tüm oranlar, o araçların
+sunduğu standart seçeneklere (16:9 / 4:3 / 1:1 / 3:4 / 9:16) hizalandı.
+
+**Karar: sitenin görsel dili dikey 3:4 üzerine kuruludur.**
+
+| Alan | Önceki | Şimdi |
+|---|---|---|
+| Ürün kartları (kategori sayfası) | 4:5 | **3:4** |
+| Ana sayfa vitrin kartları | 3:4 | 3:4 (değişmedi) |
+| Panel önizlemeleri ve hazır görseller | 4:5 | **3:4** |
+| Sepet ve tablo küçük görselleri | 4:5 / 5:6 | **3:4** |
+| Sıkıştırma sınırı | 1200 × 1500 | **1200 × 1600** (tam 3:4) |
+
+- Ürün sayfasında görsel  ile gösterildiği için 1:1 ve 4:3 fotoğraflar
+  da kırpılmadan görünür; yalnızca kartlarda 3:4 çerçeveye kırpılırlar.
+- Panele görsel bir **oran rehberi** eklendi: beş oran küçük kutucuklar hâlinde
+  gösteriliyor, 3:4 önerilen olarak vurgulanıyor, 16:9 ve 9:16 kaçınılacak olarak işaretli.
+- Aynı rehber kapak yönetimi sekmesine de kondu.
+
 ---
 
 ## 9. Alınan kararlar
@@ -279,6 +301,7 @@ Supabase paneline erişim beklenirken, veritabanı gerektirmeyen işler yapıld�
 | 2026-09-16 | Fotoğraflar Supabase Storage'a taşınacak | 5,6 MB indirme ve depolama kotası sorunlarının kaynağı |
 | 2026-09-16 | Şema değişiklikleri `scripts/run-sql.mjs` ile yapılacak | Supabase paneline girmeden, tek bağlantı bilgisiyle |
 | 2026-09-16 | Siparişte WhatsApp asıl, veritabanı ikinci kanal | Veritabanı erişilemezse bile sipariş kaybolmasın |
+| 2026-09-16 | Tüm görseller dikey 3:4 standardında | Üretim araçlarının hazır oranlarıyla birebir uyum |
 
 ---
 
