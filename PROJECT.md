@@ -280,7 +280,7 @@ sunduğu standart seçeneklere (16:9 / 4:3 / 1:1 / 3:4 / 9:16) hizalandı.
 | Sepet ve tablo küçük görselleri | 4:5 / 5:6 | **3:4** |
 | Sıkıştırma sınırı | 1200 × 1500 | **1200 × 1600** (tam 3:4) |
 
-- Ürün sayfasında görsel  ile gösterildiği için 1:1 ve 4:3 fotoğraflar
+- Ürün sayfasında görsel tam olarak (kırpılmadan) gösterildiği için 1:1 ve 4:3 fotoğraflar
   da kırpılmadan görünür; yalnızca kartlarda 3:4 çerçeveye kırpılırlar.
 - Panele görsel bir **oran rehberi** eklendi: beş oran küçük kutucuklar hâlinde
   gösteriliyor, 3:4 önerilen olarak vurgulanıyor, 16:9 ve 9:16 kaçınılacak olarak işaretli.
