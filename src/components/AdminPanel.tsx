@@ -1401,6 +1401,14 @@ export default function AdminPanel({
                     ? 'Ana sayfadaki ana vitrin kartlarının kapak görsellerini dilediğiniz zaman yükleyebilir, değiştirebilir veya hazır atölye fotoğraflarından seçebilirsiniz.'
                     : 'Easily customize the homepage category showcase cards anytime from your computer or curated presets.'}
                 </p>
+                <p className="text-[11px] text-brand-warmgray/90 mt-2 max-w-2xl font-light flex items-start gap-1.5">
+                  <Sparkles size={11} className="text-brand-terracotta shrink-0 mt-0.5" />
+                  <span>
+                    {language === 'tr'
+                      ? 'İdeal kapak ölçüsü: dikey 3:4 oran (örneğin 1200 × 1600 piksel). Vitrin kartlarında görselin alt kısmına yazı geldiği için ürünü üst-orta bölgede konumlandırın.'
+                      : 'Ideal cover size: vertical 3:4 ratio (e.g. 1200 × 1600 px). Text sits over the lower part of the card, so keep the subject in the upper-middle area.'}
+                  </span>
+                </p>
               </div>
 
             </div>
@@ -2114,9 +2122,42 @@ export default function AdminPanel({
                 {/* Presets / Custom Image Selector */}
                 <div>
                   <label className="block text-brand-charcoal/80 font-medium tracking-wide mb-1.5 uppercase flex items-center gap-1.5">
-                    <ImageIcon size={12} className="text-brand-terracotta" /> 
+                    <ImageIcon size={12} className="text-brand-terracotta" />
                     {language === 'tr' ? 'ÜRÜN GÖRSELLERİ *' : 'PRODUCT IMAGES *'}
                   </label>
+
+                  {/* Fotoğraf çekim ve ölçü rehberi */}
+                  <div className="bg-brand-sand/20 border border-brand-sand/60 rounded-[2px] p-3 mb-4">
+                    <div className="flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-brand-charcoal mb-2">
+                      <Sparkles size={11} className="text-brand-terracotta" />
+                      <span>{language === 'tr' ? 'İDEAL FOTOĞRAF ÖLÇÜLERİ' : 'IDEAL PHOTO SPECS'}</span>
+                    </div>
+                    <ul className="text-[11px] text-brand-warmgray font-light leading-relaxed space-y-1">
+                      {(language === 'tr'
+                        ? [
+                            'Dikey çekin: 4:5 oran (örneğin 1200 × 1500 piksel). Mağaza kartları bu orana göre kırpılır.',
+                            'En az 1000 piksel genişlik yeterlidir. Panel görseli otomatik küçültüp sıkıştırır, telefondan çekilen fotoğraflar sorunsuz çalışır.',
+                            'Ürünü kadrajın ortasına alın, kenarlarda bir miktar boşluk bırakın; kartlarda kenarlar kırpılabilir.',
+                            'Doğal gün ışığı ve sade, açık renkli arka plan en iyi sonucu verir.',
+                            'İlk fotoğraf kapak olur. En iyi kareyi sürükleyerek başa alabilirsiniz.',
+                            'Ürün başına 3-6 fotoğraf idealdir: genel görünüm, detay/doku, kullanım hali.'
+                          ]
+                        : [
+                            'Shoot vertically: 4:5 ratio (e.g. 1200 × 1500 px). Store cards are cropped to this ratio.',
+                            'At least 1000 px wide is enough. The panel resizes and compresses automatically, so phone photos work fine.',
+                            'Center the product and leave some margin; card edges may be cropped.',
+                            'Natural daylight and a plain, light background give the best result.',
+                            'The first photo becomes the cover. Drag your best shot to the first position.',
+                            '3-6 photos per product is ideal: overall view, detail/texture, in use.'
+                          ]
+                      ).map((madde, i) => (
+                        <li key={i} className="flex gap-1.5">
+                          <span className="text-brand-terracotta shrink-0">·</span>
+                          <span>{madde}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
                   {/* Tabs Selector */}
                   <div className="flex gap-4 border-b border-brand-sand/30 mb-4 text-[10px] uppercase tracking-widest font-semibold pb-1">
@@ -2124,8 +2165,9 @@ export default function AdminPanel({
                       type="button"
                       onClick={() => {
                         setImageSource('preset');
-                        if (formPresetIndex === null) {
-                          setFormImages([PRESET_IMAGES[formCategory][0].url]);
+                        const presets = PRESET_IMAGES[formCategory];
+                        if (formPresetIndex === null && presets && presets.length > 0) {
+                          setFormImages([presets[0].url]);
                           setFormPresetIndex(0);
                         }
                       }}
@@ -2157,7 +2199,23 @@ export default function AdminPanel({
                   </div>
                   
                   {imageSource === 'preset' ? (
-                    /* Preset Cards */
+                    /* Preset Cards — yeni eklenen kategorilerde hazır görsel bulunmaz */
+                    (PRESET_IMAGES[formCategory]?.length ?? 0) === 0 ? (
+                      <div className="border border-dashed border-brand-sand/70 rounded-[2px] p-5 text-center">
+                        <p className="text-[11px] text-brand-warmgray font-light">
+                          {language === 'tr'
+                            ? 'Bu kategori için hazır görsel bulunmuyor. Yandaki sekmeden kendi fotoğrafınızı yükleyin.'
+                            : 'No preset images for this category. Use the other tab to upload your own photo.'}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setImageSource('upload')}
+                          className="mt-2 text-[11px] font-sans tracking-widest text-brand-terracotta underline hover:text-brand-charcoal uppercase"
+                        >
+                          {language === 'tr' ? 'FOTOĞRAF YÜKLE' : 'UPLOAD PHOTO'}
+                        </button>
+                      </div>
+                    ) : (
                     <div className="grid grid-cols-4 gap-2">
                       {PRESET_IMAGES[formCategory].map((preset, idx) => (
                         <button
@@ -2187,6 +2245,7 @@ export default function AdminPanel({
                         </button>
                       ))}
                     </div>
+                    )
                   ) : (
                     <div className="space-y-4">
                       {/* Drag and Drop Container */}

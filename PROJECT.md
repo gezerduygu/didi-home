@@ -135,7 +135,7 @@ son yazan kazanır, fotoğraflar JSON içine base64 olarak gömülüdür (5,6 MB
 - [ ] **Aşama 1 — Veri modeli ve veri kaybı korumaları**  ← sıradaki
 - [ ] **Aşama 2 — Gerçek yönetici girişi (Supabase Auth + RLS)**
 - [ ] **Aşama 3 — Fotoğraf altyapısı (Storage) ve panel ölçü rehberi**
-- [ ] **Aşama 4 — Sipariş akışı (kayıt + WhatsApp)**
+- [~] **Aşama 4 — Sipariş akışı (kayıt + WhatsApp)** — WhatsApp tarafı çalışıyor, kayıt tabloyu bekliyor
 - [ ] **Aşama 5 — Otomatik İngilizce çeviri (OpenRouter + terim sözlüğü)**
 - [ ] **Aşama 6 — SEO, performans ve kod temizliği**
 
@@ -217,6 +217,55 @@ Canlı verinin tam yedeği alındı: `backups/supabase-full-2026-09-16_1038.json
 
 ---
 
+
+### 2026-09-16 — Aşama 1 (kısmi) ve Aşama 4 (kısmi)
+
+Supabase paneline erişim beklenirken, veritabanı gerektirmeyen işler yapıldı.
+
+**Aşama 1 — hazırlık (tablolar oluşturulunca devreye girecek)**
+- `sql/01_schema.sql`: products / categories / settings / orders / revisions tabloları.
+- `scripts/migrate-store-data.mjs`: eski tek-JSON yapısından yeni tablolara taşıma.
+  Varsayılan olarak deneme modunda çalışır, önce yedek alır, sonunda doğrular.
+  Deneme sonucu: 7 ürün + 3 kategori sorunsuz eşleşti.
+- `scripts/run-sql.mjs`: `.env.local` içindeki `SUPABASE_DB_URL` ile doğrudan
+  veritabanına bağlanıp SQL çalıştırır. Böylece şema değişiklikleri için
+  Supabase panelini açmak gerekmez.
+- `src/store.ts`: yeni veri katmanı (henüz uygulamaya bağlanmadı).
+
+**Aşama 4 — sipariş akışı (çalışır durumda)**
+- `src/orders.ts` eklendi. Tasarım kararı: **WhatsApp asıl kanal, veritabanı ikinci
+  kanaldır.** Veritabanına ulaşılamasa bile sipariş kaybolmaz.
+- Sepetteki "SİPARİŞİ VER" butonu artık gerçekten iş yapıyor: müşterinin bilgileri
+  ve sepeti `DH-20260916-XXX` biçiminde bir sipariş numarasıyla hazır WhatsApp
+  mesajına dönüşüyor ve 0505 632 73 23 numarasına yönlendiriliyor.
+- Onay ekranındaki "e-postanıza kargo kodu gönderilecek" ifadesi kaldırıldı;
+  yerine sipariş numarası, ne yapılacağı ve açılır pencere engellenirse diye
+  yedek bir WhatsApp bağlantısı kondu.
+- Sipariş ayrıca tarayıcıda yerel olarak yedekleniyor (son çare).
+- `orders` tablosuna kayıt kodu yazıldı; tablo oluşunca ek bir işlem gerekmeden
+  çalışmaya başlayacak.
+
+**Panel iyileştirmeleri**
+- Ürün formuna **ideal fotoğraf ölçüleri rehberi** eklendi (dikey 4:5, ~1200×1500 px,
+  kadraj, ışık, ilk fotoğrafın kapak olması, ürün başına 3-6 fotoğraf).
+- Kapak yönetimi sekmesine vitrin görseli için ölçü notu eklendi (dikey 3:4, 1200×1600 px).
+- Yeni kategori eklendiğinde ürün formunu çökerten hata giderildi: hazır görseli
+  olmayan kategorilerde artık bilgilendirme ve "fotoğraf yükle" yönlendirmesi çıkıyor.
+
+**Doğrulama**
+- `tsc`: 0 hata, `build`: başarılı.
+- Tarayıcıda uçtan uca sipariş denemesi yapıldı; üretilen WhatsApp mesajı,
+  numara ve sipariş numarası kontrol edildi.
+- Panelde rehber kutusu ve ürün formu ekran görüntüsüyle doğrulandı.
+
+**Bekleyen (Supabase erişimi gerekiyor)**
+1. `sql/01_schema.sql` çalıştırılacak
+2. `node scripts/migrate-store-data.mjs --apply` ile veri taşınacak
+3. Uygulama `src/store.ts` katmanına geçirilecek
+4. Panele çöp kutusu, taslak/satıldı durumu ve JSON yedek butonu eklenecek
+
+---
+
 ## 9. Alınan kararlar
 
 | Tarih | Karar | Gerekçe |
@@ -228,6 +277,8 @@ Canlı verinin tam yedeği alındı: `backups/supabase-full-2026-09-16_1038.json
 | 2026-09-16 | "Kataloğu sıfırla" kaldırılacak | Tek tıkla tüm kataloğu yok etme riski |
 | 2026-09-16 | Çeviri: OpenRouter, sunucu tarafında, kayıt anında bir kez | Anahtar tarayıcıya sızmaz, ziyaretçi başına maliyet oluşmaz |
 | 2026-09-16 | Fotoğraflar Supabase Storage'a taşınacak | 5,6 MB indirme ve depolama kotası sorunlarının kaynağı |
+| 2026-09-16 | Şema değişiklikleri `scripts/run-sql.mjs` ile yapılacak | Supabase paneline girmeden, tek bağlantı bilgisiyle |
+| 2026-09-16 | Siparişte WhatsApp asıl, veritabanı ikinci kanal | Veritabanı erişilemezse bile sipariş kaybolmasın |
 
 ---
 

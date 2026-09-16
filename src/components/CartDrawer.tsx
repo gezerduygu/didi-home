@@ -3,6 +3,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Trash2, Plus, Minus, CreditCard, ShoppingBag, Check } from 'lucide-react';
 import { CartItem } from '../types';
 import { useLanguage } from '../context/LanguageContext';
+import {
+  siparisNoUret,
+  siparisMesajiOlustur,
+  whatsappAdresi,
+  siparisiKaydet,
+  siparisiYerelYedekle,
+  SiparisOzeti
+} from '../orders';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -30,6 +38,9 @@ export default function CartDrawer({
     city: '',
     address: ''
   });
+  // Sipariş tamamlandığında gösterilecek bilgiler
+  const [siparisNo, setSiparisNo] = useState('');
+  const [whatsappLinki, setWhatsappLinki] = useState('');
 
   if (!isOpen) return null;
 
@@ -48,7 +59,30 @@ export default function CartDrawer({
     if (!shippingInfo.name || !shippingInfo.email || !shippingInfo.address) {
       return;
     }
+
+    const siparis: SiparisOzeti = {
+      siparisNo: siparisNoUret(),
+      items: cartItems,
+      subtotal,
+      shipping: shippingCost,
+      total,
+      bilgi: shippingInfo
+    };
+
+    const mesaj = siparisMesajiOlustur(siparis, language);
+    const link = whatsappAdresi(mesaj);
+
+    // WhatsApp penceresi TIKLAMA ANINDA açılır; beklemeye alırsak
+    // tarayıcının açılır pencere engelleyicisi araya girer.
+    window.open(link, '_blank', 'noopener');
+
+    setSiparisNo(siparis.siparisNo);
+    setWhatsappLinki(link);
     setCheckoutStep('success');
+
+    // Kayıt arka planda; başarısız olursa sipariş yine de kaybolmaz.
+    siparisiYerelYedekle(siparis);
+    siparisiKaydet(siparis);
   };
 
   const handleOrderSuccessClose = () => {
@@ -239,9 +273,9 @@ export default function CartDrawer({
                   className="space-y-4"
                 >
                   <p className="text-xs text-brand-warmgray leading-relaxed mb-4">
-                    {language === 'tr' 
-                      ? 'Siparişinizin size ulaşması için lütfen teslimat bilgilerinizi doldurun. Ödeme kapıda nakit/kart veya havale ile yapılabilmektedir.' 
-                      : 'Please enter your delivery details to receive your order. Payment can be made via cash/card on delivery or bank transfer.'}
+                    {language === 'tr'
+                      ? 'Lütfen teslimat bilgilerinizi doldurun. Bilgileriniz hazır bir mesaja dönüştürülüp WhatsApp üzerinden bize iletilecek; siparişinizi oradan birlikte tamamlayacağız. Ödeme havale veya kapıda nakit ile yapılabilir.'
+                      : 'Please fill in your delivery details. They will be turned into a ready-made WhatsApp message so we can finalise your order together. Payment by bank transfer or cash on delivery.'}
                   </p>
 
                   <div className="space-y-3 font-sans text-xs">
@@ -358,7 +392,7 @@ export default function CartDrawer({
                       id="btn-submit-order"
                       className="flex-1 py-3 bg-brand-charcoal hover:bg-brand-charcoal/95 text-brand-beige text-xs font-sans tracking-widest uppercase transition-colors rounded-[2px]"
                     >
-                      {language === 'tr' ? 'SİPARİŞİ VER' : 'PLACE ORDER'}
+                      {language === 'tr' ? 'WHATSAPP İLE GÖNDER' : 'SEND VIA WHATSAPP'}
                     </button>
                   </div>
                 </motion.form>
@@ -379,17 +413,32 @@ export default function CartDrawer({
                   <h3 className="font-serif text-2xl font-light text-brand-charcoal tracking-wide mb-3">
                     {t('cart.success_title')}
                   </h3>
-                  <p className="text-xs text-brand-warmgray/90 leading-relaxed max-w-sm mb-6">
+                  <p className="text-xs text-brand-warmgray/90 leading-relaxed max-w-sm mb-4">
                     {language === 'tr' ? (
                       <span>
-                        Sevgili <strong className="text-brand-charcoal">{shippingInfo.name}</strong>, Didi Home'u tercih ettiğiniz için teşekkür ederiz. Sipariş özetiniz ve kargo takip kodunuz <strong className="text-brand-charcoal">{shippingInfo.email}</strong> adresine gönderilecektir.
+                        Sevgili <strong className="text-brand-charcoal">{shippingInfo.name}</strong>, WhatsApp penceresi açıldı. Siparişinizin bize ulaşması için <strong className="text-brand-charcoal">hazır mesajı göndermeniz yeterli.</strong> En kısa sürede size dönüş yapacağız.
                       </span>
                     ) : (
                       <span>
-                        Dear <strong className="text-brand-charcoal">{shippingInfo.name}</strong>, thank you for choosing Didi Home. Your order summary and shipment details will be sent to <strong className="text-brand-charcoal">{shippingInfo.email}</strong> shortly.
+                        Dear <strong className="text-brand-charcoal">{shippingInfo.name}</strong>, your WhatsApp window is open. Just <strong className="text-brand-charcoal">send the prepared message</strong> and your order reaches us. We will get back to you shortly.
                       </span>
                     )}
                   </p>
+
+                  {/* Açılır pencere engellendiyse yedek bağlantı */}
+                  <a
+                    href={whatsappLinki}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-brand-terracotta underline hover:text-brand-charcoal mb-5 tracking-wide"
+                  >
+                    {language === 'tr' ? 'WhatsApp açılmadıysa buraya dokunun' : 'Tap here if WhatsApp did not open'}
+                  </a>
+
+                  <div className="text-[10px] font-sans tracking-[0.2em] text-brand-warmgray uppercase mb-5">
+                    {language === 'tr' ? 'SİPARİŞ NO' : 'ORDER NO'}{' '}
+                    <strong className="text-brand-charcoal">{siparisNo}</strong>
+                  </div>
 
                   <div className="w-full bg-brand-sand/20 border border-brand-sand/40 p-4 rounded-[2px] text-xs font-sans text-left space-y-2 text-brand-warmgray mb-8">
                     <h4 className="text-[10px] tracking-widest text-brand-charcoal font-semibold uppercase border-b border-brand-sand/40 pb-1.5 mb-2">
