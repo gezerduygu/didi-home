@@ -103,12 +103,13 @@ export function whatsappAdresi(mesaj: string): string {
 export async function siparisiKaydet(siparis: SiparisOzeti): Promise<boolean> {
   try {
     const { error } = await supabase.from('orders').insert({
+      siparis_no: siparis.siparisNo,
       customer_name: siparis.bilgi.name,
       email: siparis.bilgi.email || null,
       phone: siparis.bilgi.phone || null,
       city: siparis.bilgi.city || null,
       address: siparis.bilgi.address || null,
-      note: [siparis.siparisNo, siparis.bilgi.note].filter(Boolean).join(' · '),
+      note: siparis.bilgi.note || null,
       items: siparis.items.map((i) => ({
         id: i.product.id,
         title: i.product.title,

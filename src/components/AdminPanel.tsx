@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Lock, 
@@ -35,10 +35,11 @@ import {
   Undo2
 } from 'lucide-react';
 import { Product, Category, CategoryItem, ProductStatus } from '../types';
-import { listDeletedProducts, exportAll, StoreError } from '../store';
+import { listDeletedProducts, exportAll, StoreError, listOrders } from '../store';
 import { gorselYukle } from '../images';
 import { cikisYap } from '../auth';
 import AdminLogin from './AdminLogin';
+import AdminOrders from './AdminOrders';
 import { useLanguage } from '../context/LanguageContext';
 
 interface AdminPanelProps {
@@ -197,7 +198,18 @@ export default function AdminPanel({
   const [yedekIndiriliyor, setYedekIndiriliyor] = useState(false);
   
   // Navigation Tabs state
-  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'covers' | 'trash'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'categories' | 'covers' | 'trash'>('products');
+
+  // Yeni (ilgilenilmemiş) sipariş sayısı — panel açılınca sekme rozetinde görünür
+  const [yeniSiparisSayisi, setYeniSiparisSayisi] = useState(0);
+  useEffect(() => {
+    if (!isAdmin) return;
+    listOrders()
+      .then((liste) => setYeniSiparisSayisi(liste.filter((s) => s.status === 'yeni').length))
+      .catch(() => {
+        /* rozet önemli değil; sekme açılınca hata ayrıca gösterilir */
+      });
+  }, [isAdmin]);
 
   // Cover Photos management states
   const [coverUrlInputs, setCoverUrlInputs] = useState<Record<string, string>>({});
@@ -854,6 +866,23 @@ export default function AdminPanel({
           </button>
 
           <button
+            onClick={() => setActiveTab('orders')}
+            className={`pb-3 px-3 sm:px-5 font-sans text-xs font-medium tracking-widest uppercase transition-all flex items-center gap-2 border-b-2 whitespace-nowrap ${
+              activeTab === 'orders'
+                ? 'border-brand-terracotta text-brand-charcoal font-semibold'
+                : 'border-transparent text-brand-warmgray hover:text-brand-charcoal'
+            }`}
+          >
+            <ShoppingBag size={15} />
+            <span>{language === 'tr' ? 'Siparişler' : 'Orders'}</span>
+            {yeniSiparisSayisi > 0 && (
+              <span className="text-[10px] bg-brand-terracotta text-white font-medium px-2 py-0.5 rounded-full shadow-xs">
+                {yeniSiparisSayisi} {language === 'tr' ? 'YENİ' : 'NEW'}
+              </span>
+            )}
+          </button>
+
+          <button
             onClick={() => setActiveTab('categories')}
             className={`pb-3 px-3 sm:px-5 font-sans text-xs font-medium tracking-widest uppercase transition-all flex items-center gap-2 border-b-2 ${
               activeTab === 'categories'
@@ -1367,6 +1396,11 @@ export default function AdminPanel({
         )}
 
         {/* TAB 3: KAPAK FOTOĞRAFLARI YÖNETİMİ */}
+        {/* TAB: SİPARİŞLER */}
+        {activeTab === 'orders' && (
+          <AdminOrders language={language} onYeniSayisi={setYeniSiparisSayisi} />
+        )}
+
         {/* TAB 4: ÇÖP KUTUSU */}
         {activeTab === 'trash' && (
           <div className="space-y-6">

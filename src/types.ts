@@ -51,6 +51,32 @@ export interface CartItem {
   quantity: number;
 }
 
+export type OrderStatus = 'yeni' | 'goruldu' | 'hazirlaniyor' | 'kargolandi' | 'iptal';
+
+export interface OrderItem {
+  id: string;
+  title: string;
+  price: number;
+  quantity: number;
+}
+
+export interface Order {
+  id: string;
+  siparisNo: string | null;
+  createdAt: string;
+  customerName: string;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
+  address: string | null;
+  note: string | null;
+  items: OrderItem[];
+  subtotal: number;
+  shipping: number;
+  total: number;
+  status: OrderStatus;
+}
+
 export interface CoverSettings {
   hauteCoutureCover: string;
   ceramicCover: string;

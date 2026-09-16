@@ -12,7 +12,7 @@
  */
 
 import { supabase } from './supabase';
-import { Product, CategoryItem, CoverSettings, ProductStatus } from './types';
+import { Product, CategoryItem, CoverSettings, ProductStatus, Order, OrderItem, OrderStatus } from './types';
 
 export const DEFAULT_COVERS: CoverSettings = {
   hauteCoutureCover: '/images/haute-couture-cover.jpg',
@@ -308,6 +308,64 @@ export async function saveCovers(covers: CoverSettings): Promise<CoverSettings> 
 
   if (error) throw new StoreError('Kapak ayarları kaydedilemedi: ' + error.message, error);
   return { ...DEFAULT_COVERS, ...(data.value as Partial<CoverSettings>) };
+}
+
+// =====================================================================
+// SİPARİŞLER (yalnızca yönetici okuyabilir — sql/02_security.sql)
+// =====================================================================
+
+interface OrderRow {
+  id: string;
+  siparis_no: string | null;
+  created_at: string;
+  customer_name: string;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
+  address: string | null;
+  note: string | null;
+  items: OrderItem[] | null;
+  subtotal: number | string;
+  shipping: number | string;
+  total: number | string;
+  status: OrderStatus;
+}
+
+const rowToOrder = (r: OrderRow): Order => ({
+  id: r.id,
+  siparisNo: r.siparis_no,
+  createdAt: r.created_at,
+  customerName: r.customer_name,
+  email: r.email,
+  phone: r.phone,
+  city: r.city,
+  address: r.address,
+  note: r.note,
+  items: r.items ?? [],
+  subtotal: Number(r.subtotal),
+  shipping: Number(r.shipping),
+  total: Number(r.total),
+  status: r.status
+});
+
+/** Siparişler, en yenisi en üstte. */
+export async function listOrders(): Promise<Order[]> {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(500);
+
+  if (error) throw new StoreError('Siparişler yüklenemedi: ' + error.message, error);
+  return (data as OrderRow[]).map(rowToOrder);
+}
+
+export async function updateOrderStatus(id: string, status: OrderStatus): Promise<void> {
+  const { data, error } = await supabase.from('orders').update({ status }).eq('id', id).select('id');
+  if (error) throw new StoreError('Sipariş durumu güncellenemedi: ' + error.message, error);
+  if (!data || data.length === 0) {
+    throw new StoreError('Sipariş durumu güncellenemedi (yetki yok ya da sipariş bulunamadı).');
+  }
 }
 
 // =====================================================================
