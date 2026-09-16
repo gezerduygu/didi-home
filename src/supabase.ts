@@ -18,27 +18,23 @@ export async function fetchStoreData<T>(key: 'products' | 'categories' | 'covers
       .single();
 
     if (!error && data?.value) {
-      // Save cache to localStorage
-      try {
-        localStorage.setItem(`didi_${key}`, JSON.stringify(data.value));
-      } catch (e) {
-        console.warn('localStorage caching failed', e);
-      }
+      // Önbellek yazma işi data.ts'de tek bir yerden yapılır (bkz. PROJECT.md).
       return data.value as T;
     }
 
-    // If no record exists yet in Supabase, auto-seed it with fallback data
-    if (error && (error.code === 'PGRST116' || error.message?.includes('0 rows') || error.message?.includes('not found'))) {
-      console.log(`[Supabase] Seeding initial cloud data for ${key}...`);
-      await saveStoreData(key, fallbackData);
+    // NOT: Kayıt bulunamadığında otomatik "tohumlama" bilerek yapılmaz.
+    // Aksi halde geçici bir okuma hatası, örnek verinin gerçek kataloğun
+    // üzerine yazılmasına yol açabilir (bkz. PROJECT.md → Altın kurallar).
+    if (error) {
+      console.warn(`[Supabase] "${key}" okunamadı:`, error.message);
     }
   } catch (err) {
     console.warn(`[Supabase] Error fetching ${key} from cloud, using fallback:`, err);
   }
 
-  // Fallback to localStorage or defaults
+  // Fallback to locally cached copy, then to defaults
   try {
-    const local = localStorage.getItem(`didi_${key}`);
+    const local = localStorage.getItem(`didi_home_${key}`);
     if (local) {
       return JSON.parse(local) as T;
     }
@@ -51,14 +47,7 @@ export async function fetchStoreData<T>(key: 'products' | 'categories' | 'covers
 
 // Generic saver with cloud sync & local caching
 export async function saveStoreData<T>(key: 'products' | 'categories' | 'covers', value: T): Promise<boolean> {
-  // 1. Save to localStorage immediately for instant local UI responsiveness
-  try {
-    localStorage.setItem(`didi_${key}`, JSON.stringify(value));
-  } catch (e) {
-    console.warn('localStorage write error', e);
-  }
-
-  // 2. Save to Supabase Cloud
+  // Yerel önbellek data.ts tarafından yazılır; burada yalnızca bulut kaydı yapılır.
   try {
     const { error } = await supabase
       .from('store_data')

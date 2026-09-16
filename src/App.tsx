@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, ArrowRight, Heart } from 'lucide-react';
 
@@ -10,15 +10,13 @@ import CartDrawer from './components/CartDrawer';
 import AboutModal from './components/AboutModal';
 import AdminPanel from './components/AdminPanel';
 
-import { 
-  getStoredProducts, 
-  saveProducts, 
-  fetchProductsFromServer, 
-  getStoredCovers, 
-  saveCovers, 
-  fetchCoversFromServer, 
-  DEFAULT_COVERS,
-  DEFAULT_CATEGORIES,
+import {
+  getStoredProducts,
+  saveProducts,
+  fetchProductsFromServer,
+  getStoredCovers,
+  saveCovers,
+  fetchCoversFromServer,
   getStoredCategories,
   saveCategories,
   fetchCategoriesFromServer
@@ -34,7 +32,7 @@ interface HistoryState {
   isAdminOpen: boolean;
 }
 
-const parseUrlState = (allProducts: Product[]): HistoryState => {
+const parseUrlState = (): HistoryState => {
   if (typeof window === 'undefined') {
     return { category: null, productId: null, isCartOpen: false, isAboutOpen: false, isAdminOpen: false };
   }
@@ -69,6 +67,8 @@ const parseUrlState = (allProducts: Product[]): HistoryState => {
 export default function App() {
   const { t, language } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
+  // Geri tuşu işleyicisi için ürünlerin güncel kopyası (kapanış değişkeni tuzağını önler)
+  const productsRef = useRef<Product[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>(getStoredCategories());
   const [covers, setCovers] = useState<CoverSettings>(getStoredCovers());
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
@@ -102,7 +102,7 @@ export default function App() {
     setCategories(getStoredCategories());
     setCovers(getStoredCovers());
 
-    const initial = parseUrlState(initialProducts);
+    const initial = parseUrlState();
     setActiveCategory(initial.category);
     setIsAdminOpen(initial.isAdminOpen);
     if (initial.productId) {
@@ -152,22 +152,18 @@ export default function App() {
   // Listen for browser / phone hardware / gesture back & forward buttons (Step-by-step back)
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      const freshProducts = getStoredProducts();
-      const freshCategories = getStoredCategories();
-      const freshCovers = getStoredCovers();
-      setProducts(freshProducts);
-      setCategories(freshCategories);
-      setCovers(freshCovers);
+      // NOT: Buradaki veriler bilerek localStorage'dan yeniden okunmaz.
+      // Önbellek doluysa sorun yoktu; boş ya da kota nedeniyle yazılamamışsa
+      // geri tuşuna basan ziyaretçiye örnek (sahte) ürünler gösteriliyordu.
+      const state: HistoryState = event.state || parseUrlState();
 
-      const state: HistoryState = event.state || parseUrlState(freshProducts);
-      
       setIsAdminOpen(Boolean(state.isAdminOpen));
       setIsCartOpen(Boolean(state.isCartOpen));
       setIsAboutOpen(Boolean(state.isAboutOpen));
       setActiveCategory(state.category || null);
 
       if (state.productId) {
-        const found = freshProducts.find(p => p.id === state.productId);
+        const found = productsRef.current.find(p => p.id === state.productId);
         setSelectedProduct(found || null);
       } else {
         setSelectedProduct(null);
@@ -270,26 +266,8 @@ export default function App() {
     }
   };
 
-  const handleOpenAdmin = () => {
-    const newState: HistoryState = {
-      category: null,
-      productId: null,
-      isCartOpen: false,
-      isAboutOpen: false,
-      isAdminOpen: true
-    };
-    window.history.pushState(newState, '', '/admin');
-    setIsAdminOpen(true);
-  };
-
   const handleCloseAdmin = () => {
-    const freshProducts = getStoredProducts();
-    const freshCategories = getStoredCategories();
-    const freshCovers = getStoredCovers();
-    setProducts(freshProducts);
-    setCategories(freshCategories);
-    setCovers(freshCovers);
-
+    // Panelde yapılan değişiklikler zaten bellekteki listede; yeniden okumaya gerek yok.
     if (window.history.state?.isAdminOpen) {
       window.history.back();
     } else {
@@ -304,6 +282,11 @@ export default function App() {
       setIsAdminOpen(false);
     }
   };
+
+  // Ürün listesinin güncel kopyasını ref'te tut
+  useEffect(() => {
+    productsRef.current = products;
+  }, [products]);
 
   // Scroll to top on category change (fixes scrolled home page issue)
   useEffect(() => {
@@ -326,86 +309,81 @@ export default function App() {
 
   // --- ACTIONS ---
 
+  // --- KAYIT YARDIMCISI ---
+  // Tüm yazma işlemleri buradan geçer. Kayıt reddedilirse (ör. bulut verisi
+  // henüz yüklenmemişse) ekrandaki liste DEĞİŞTİRİLMEZ ve kullanıcı gerçek
+  // durumu görür. Bkz. PROJECT.md → Altın kurallar.
+  const persist = (save: () => void, apply: () => void, successMessage: string): boolean => {
+    try {
+      save();
+      apply();
+      triggerNotification(successMessage);
+      return true;
+    } catch (err) {
+      console.error('[Kayıt] İşlem tamamlanamadı:', err);
+      triggerNotification(
+        language === 'tr'
+          ? 'Kaydedilemedi. Veriler henüz yüklenmemiş olabilir; sayfayı yenileyip tekrar deneyin. Değişikliğiniz uygulanmadı.'
+          : 'Could not save. Data may not be loaded yet; please refresh and try again. Your change was not applied.'
+      );
+      return false;
+    }
+  };
+
   // Add Custom Product (Admin)
   const handleAddProduct = (newProduct: Product) => {
     const updatedProducts = [newProduct, ...products];
-    try {
-      saveProducts(updatedProducts);
-      setProducts(updatedProducts);
-      triggerNotification(
-        language === 'tr' 
-          ? `"${newProduct.title}" başarıyla atölyeye eklendi ve yayına alındı!` 
-          : `"${newProduct.title}" successfully added to the workshop and published!`
-      );
-    } catch (e) {
-      console.error('Failed to save to localStorage due to size limit', e);
-      setProducts(updatedProducts);
-      triggerNotification(
-        language === 'tr' 
-          ? "Hafıza Uyarısı: Fotoğraf başarıyla yüklendi ve yayına alındı, ancak tarayıcı hafızanız dolu olduğu için kalıcı kaydedilemedi." 
-          : "Storage Warning: Image successfully uploaded and published, but could not be permanently saved due to full browser storage."
-      );
-    }
+    persist(
+      () => saveProducts(updatedProducts),
+      () => setProducts(updatedProducts),
+      language === 'tr'
+        ? `"${newProduct.title}" başarıyla atölyeye eklendi ve yayına alındı!`
+        : `"${newProduct.title}" successfully added to the workshop and published!`
+    );
   };
 
   // Update Custom Product (Admin)
   const handleUpdateProduct = (updatedProduct: Product) => {
     const updatedProducts = products.map(p => p.id === updatedProduct.id ? updatedProduct : p);
-    try {
-      saveProducts(updatedProducts);
-      setProducts(updatedProducts);
-      triggerNotification(
-        language === 'tr' 
-          ? `"${updatedProduct.title}" başarıyla güncellendi!` 
-          : `"${updatedProduct.title}" successfully updated!`
-      );
-    } catch (e) {
-      console.error('Failed to save to localStorage due to size limit', e);
-      setProducts(updatedProducts);
-      triggerNotification(
-        language === 'tr' 
-          ? "Hafıza Uyarısı: Güncelleme yapıldı ve yayına alındı, ancak tarayıcı hafızanız dolu olduğu için kalıcı kaydedilemedi." 
-          : "Storage Warning: Updated and published, but could not be permanently saved due to full browser storage."
-      );
-    }
+    persist(
+      () => saveProducts(updatedProducts),
+      () => setProducts(updatedProducts),
+      language === 'tr'
+        ? `"${updatedProduct.title}" başarıyla güncellendi!`
+        : `"${updatedProduct.title}" successfully updated!`
+    );
   };
 
   // Reorder Products (Admin Drag and Drop)
   const handleReorderProducts = (reorderedProducts: Product[]) => {
-    setProducts(reorderedProducts);
-    saveProducts(reorderedProducts);
+    persist(
+      () => saveProducts(reorderedProducts),
+      () => setProducts(reorderedProducts),
+      language === 'tr' ? 'Sıralama kaydedildi.' : 'Order saved.'
+    );
   };
 
   // Delete Product (Admin)
   const handleDeleteProduct = (id: string) => {
+    const target = products.find(p => p.id === id);
     const updatedProducts = products.filter(p => p.id !== id);
-    setProducts(updatedProducts);
-    saveProducts(updatedProducts);
-    triggerNotification(
-      language === 'tr' ? "Ürün başarıyla silindi." : "Product successfully deleted."
-    );
-  };
-
-  // Reset Products to Defaults (Admin)
-  const handleResetProducts = () => {
-    localStorage.removeItem('didi_home_products');
-    const defaults = getStoredProducts();
-    setProducts(defaults);
-    triggerNotification(
-      language === 'tr' 
-        ? "Katalog başarıyla varsayılan fabrika ayarlarına sıfırlandı!" 
-        : "Catalog successfully reset to factory defaults!"
+    persist(
+      () => saveProducts(updatedProducts),
+      () => setProducts(updatedProducts),
+      language === 'tr'
+        ? `"${target?.title || id}" silindi.`
+        : `"${target?.title || id}" deleted.`
     );
   };
 
   // Add New Category (Admin)
   const handleAddCategory = (newCat: CategoryItem) => {
     const updated = [...categories, newCat];
-    setCategories(updated);
-    saveCategories(updated);
-    triggerNotification(
-      language === 'tr' 
-        ? `"${newCat.title}" kategorisi başarıyla oluşturuldu!` 
+    persist(
+      () => saveCategories(updated),
+      () => setCategories(updated),
+      language === 'tr'
+        ? `"${newCat.title}" kategorisi başarıyla oluşturuldu!`
         : `Category "${newCat.title}" successfully created!`
     );
   };
@@ -413,11 +391,11 @@ export default function App() {
   // Update Category (Admin)
   const handleUpdateCategory = (updatedCat: CategoryItem) => {
     const updated = categories.map(c => c.id === updatedCat.id ? updatedCat : c);
-    setCategories(updated);
-    saveCategories(updated);
-    triggerNotification(
-      language === 'tr' 
-        ? `"${updatedCat.title}" kategorisi güncellendi!` 
+    persist(
+      () => saveCategories(updated),
+      () => setCategories(updated),
+      language === 'tr'
+        ? `"${updatedCat.title}" kategorisi güncellendi!`
         : `Category "${updatedCat.title}" updated!`
     );
   };
@@ -426,47 +404,26 @@ export default function App() {
   const handleDeleteCategory = (catId: string) => {
     const target = categories.find(c => c.id === catId);
     const updated = categories.filter(c => c.id !== catId);
-    setCategories(updated);
-    saveCategories(updated);
-    triggerNotification(
-      language === 'tr' 
-        ? `"${target?.title || catId}" kategorisi silindi.` 
+    persist(
+      () => saveCategories(updated),
+      () => setCategories(updated),
+      language === 'tr'
+        ? `"${target?.title || catId}" kategorisi silindi.`
         : `Category "${target?.title || catId}" deleted.`
-    );
-  };
-
-  // Reset Categories to Defaults (Admin)
-  const handleResetCategories = () => {
-    setCategories(DEFAULT_CATEGORIES);
-    saveCategories(DEFAULT_CATEGORIES);
-    triggerNotification(
-      language === 'tr' 
-        ? "Kategoriler varsayılan ayarlara sıfırlandı!" 
-        : "Categories reset to factory defaults!"
     );
   };
 
   // Update Cover Settings (Admin)
   const handleUpdateCovers = (newCovers: CoverSettings) => {
-    setCovers(newCovers);
-    saveCovers(newCovers);
-    triggerNotification(
-      language === 'tr' 
-        ? "Kapak fotoğrafları başarıyla güncellendi ve yayına alındı!" 
-        : "Cover photos successfully updated and published!"
+    persist(
+      () => saveCovers(newCovers),
+      () => setCovers(newCovers),
+      language === 'tr'
+        ? 'Kapak fotoğrafları başarıyla güncellendi ve yayına alındı!'
+        : 'Cover photos successfully updated and published!'
     );
   };
 
-  // Reset Cover Settings to Defaults (Admin)
-  const handleResetCovers = () => {
-    setCovers(DEFAULT_COVERS);
-    saveCovers(DEFAULT_COVERS);
-    triggerNotification(
-      language === 'tr' 
-        ? "Kapak fotoğrafları varsayılan ayarlara sıfırlandı!" 
-        : "Cover photos reset to factory defaults!"
-    );
-  };
 
   // Add product to cart
   const handleAddToCart = (product: Product) => {
@@ -543,13 +500,10 @@ export default function App() {
           onUpdateProduct={handleUpdateProduct}
           onDeleteProduct={handleDeleteProduct}
           onReorderProducts={handleReorderProducts}
-          onResetProducts={handleResetProducts}
           onAddCategory={handleAddCategory}
           onUpdateCategory={handleUpdateCategory}
           onDeleteCategory={handleDeleteCategory}
-          onResetCategories={handleResetCategories}
           onUpdateCovers={handleUpdateCovers}
-          onResetCovers={handleResetCovers}
           onClose={handleCloseAdmin}
         />
       </div>
@@ -746,13 +700,6 @@ export default function App() {
               className="hover:text-brand-charcoal transition-colors"
             >
               {t('footer.decor')}
-            </button>
-            <button
-              id="footer-admin-btn"
-              onClick={handleOpenAdmin}
-              className="hover:text-brand-charcoal transition-colors uppercase opacity-75 hover:opacity-100"
-            >
-              {t('footer.admin')}
             </button>
           </div>
           <div className="text-[10px] text-brand-warmgray/60 italic">

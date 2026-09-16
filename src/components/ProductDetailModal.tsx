@@ -191,7 +191,7 @@ export default function ProductDetailModal({
                   <Sparkles size={13} className="text-brand-terracotta shrink-0 mt-0.5" />
                   <span>
                     {language === 'tr' 
-                      ? 'Didi Home koleksiyonundaki her bir parça tekil, el yapımı veya özenle seçilmiş vintage niteliğindedir. Kusurlarındaki özgün hikayeleri taşırlar.' 
+                      ? 'Didi Home koleksiyonundaki her bir parça tek, el yapımı veya özenle seçilmiş vintage niteliğindedir. Kusurlarındaki özgün hikayeleri taşırlar.'
                       : 'Each piece in the Didi Home collection is unique, handcrafted, or carefully selected vintage. They carry the authentic stories within their imperfections.'}
                   </span>
                 </div>
@@ -261,9 +261,9 @@ export default function ProductDetailModal({
                   )}
                 </button>
                 <p className="text-[10px] text-center text-brand-warmgray mt-2 tracking-wide">
-                  {language === 'tr' 
-                    ? 'Türkiye içi ücretsiz kargo · 3 iş gününde kargoya teslim' 
-                    : 'Free shipping within Turkey · Dispatched within 3 business days'}
+                  {language === 'tr'
+                    ? '3.000 TL ve üzeri siparişlerde ücretsiz kargo · 3 iş gününde kargoya teslim'
+                    : 'Free shipping on orders over 3,000 TL · Dispatched within 3 business days'}
                 </p>
               </div>
 

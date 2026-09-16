@@ -43,13 +43,10 @@ interface AdminPanelProps {
   onUpdateProduct: (product: Product) => void;
   onDeleteProduct: (id: string) => void;
   onReorderProducts?: (products: Product[]) => void;
-  onResetProducts: () => void;
   onAddCategory: (category: CategoryItem) => void;
   onUpdateCategory: (category: CategoryItem) => void;
   onDeleteCategory: (categoryId: string) => void;
-  onResetCategories: () => void;
   onUpdateCovers: (covers: CoverSettings) => void;
-  onResetCovers: () => void;
   onClose: () => void;
 }
 
@@ -201,13 +198,10 @@ export default function AdminPanel({
   onUpdateProduct,
   onDeleteProduct,
   onReorderProducts,
-  onResetProducts,
   onAddCategory,
   onUpdateCategory,
   onDeleteCategory,
-  onResetCategories,
   onUpdateCovers,
-  onResetCovers,
   onClose
 }: AdminPanelProps) {
   const { language, t } = useLanguage();
@@ -306,9 +300,9 @@ export default function AdminPanel({
       setAuthError('');
     } else {
       setAuthError(
-        language === 'tr' 
-          ? 'Hatalı Şifre. Lütfen "didi" şifresini deneyin.' 
-          : 'Incorrect Password. Please try "didi" as password.'
+        language === 'tr'
+          ? 'Hatalı şifre. Lütfen tekrar deneyin.'
+          : 'Incorrect password. Please try again.'
       );
     }
   };
@@ -427,15 +421,6 @@ export default function AdminPanel({
     }
   };
 
-  const handleResetCategoriesPrompt = () => {
-    const msg = language === 'tr'
-      ? 'Kategorileri fabrika ayarlarına (3 ana kategori) sıfırlamak istiyor musunuz?'
-      : 'Do you want to reset categories to default settings?';
-    if (confirm(msg)) {
-      onResetCategories();
-    }
-  };
-
   // --- COVER PHOTOS HANDLERS ---
   const handleCoverUpload = async (key: keyof CoverSettings, file: File) => {
     try {
@@ -490,15 +475,6 @@ export default function AdminPanel({
     setTimeout(() => setCoverSuccessKey(null), 3000);
   };
 
-  const handleResetAllCovers = () => {
-    const message = language === 'tr'
-      ? 'Tüm kapak fotoğraflarını fabrika ayarlarına sıfırlamak istiyor musunuz?'
-      : 'Are you sure you want to reset all cover photos to factory defaults?';
-    if (confirm(message)) {
-      onResetCovers();
-    }
-  };
-
   // Open Form for Adding
   const handleOpenAdd = () => {
     const defaultCat = categories[0]?.id || 'seramik';
@@ -534,7 +510,7 @@ export default function AdminPanel({
     setFormCondition(product.condition || '');
     setFormMaterial(product.material || '');
     setFormDimensions(product.dimensions || '');
-    setFormIsSecondHand(product.isSecondHand);
+    setFormIsSecondHand(product.isSecondHand ?? false);
     
     const initialImages = product.images && product.images.length > 0 ? product.images : [product.image];
     setFormImages(initialImages);
@@ -839,7 +815,9 @@ export default function AdminPanel({
                 autoFocus
               />
               <span className="text-[10px] text-brand-warmgray/60 block mt-1.5 italic">
-                {language === 'tr' ? 'Giriş şifresi: didi' : 'Password is: didi'}
+                {language === 'tr'
+                  ? 'Bu alan yalnızca site yöneticisi içindir.'
+                  : 'This area is for the site administrator only.'}
               </span>
             </div>
 
@@ -1055,21 +1033,6 @@ export default function AdminPanel({
 
               {/* Actions Buttons Group */}
               <div className="hidden sm:flex items-center gap-3">
-                <button
-                  onClick={() => {
-                    const message = language === 'tr'
-                      ? 'Kataloğu fabrika ayarlarına sıfırlamak istiyor musunuz? Eklediğiniz veya düzenlediğiniz tüm ürünler sıfırlanıp orijinal kataloğumuz yüklenecektir.'
-                      : 'Do you want to reset the catalog to factory default settings? All your custom or edited products will be reset and our original catalog will be loaded.';
-                    if (confirm(message)) {
-                      onResetProducts();
-                    }
-                  }}
-                  className="py-2 px-4 border border-brand-sand hover:border-brand-charcoal text-brand-charcoal text-xs tracking-widest uppercase transition-colors rounded-[2px] flex items-center justify-center gap-1.5 font-medium shrink-0"
-                  title={language === 'tr' ? 'Kataloğu fabrika ayarlarına sıfırla' : 'Reset catalog to factory default'}
-                >
-                  <RotateCcw size={13} />
-                  {language === 'tr' ? 'KATALOĞU SIFIRLA' : 'RESET CATALOG'}
-                </button>
                 <button
                   onClick={handleOpenAdd}
                   className="py-2.5 px-4 bg-brand-charcoal hover:bg-brand-charcoal/90 text-brand-beige text-xs tracking-widest uppercase transition-colors rounded-[2px] flex items-center gap-2 font-medium shrink-0 shadow-sm"
@@ -1296,14 +1259,6 @@ export default function AdminPanel({
 
               <div className="flex items-center gap-3">
                 <button
-                  onClick={handleResetCategoriesPrompt}
-                  className="py-2.5 px-4 border border-brand-sand hover:border-brand-charcoal text-brand-charcoal text-xs tracking-widest uppercase transition-colors rounded-[2px] flex items-center gap-2 font-medium shrink-0 bg-brand-beige shadow-xs hover:text-brand-terracotta"
-                  title={language === 'tr' ? 'Kategorileri 3 ana kategoriye sıfırla' : 'Reset categories to default'}
-                >
-                  <RotateCcw size={13} />
-                  <span>{language === 'tr' ? 'SIFIRLA' : 'RESET'}</span>
-                </button>
-                <button
                   onClick={handleOpenAddCategory}
                   className="py-2.5 px-4 bg-brand-charcoal hover:bg-brand-charcoal/90 text-brand-beige text-xs tracking-widest uppercase transition-colors rounded-[2px] flex items-center gap-2 font-medium shrink-0 shadow-sm"
                 >
@@ -1448,13 +1403,6 @@ export default function AdminPanel({
                 </p>
               </div>
 
-              <button
-                onClick={handleResetAllCovers}
-                className="py-2.5 px-4 border border-brand-sand hover:border-brand-charcoal text-brand-charcoal text-xs tracking-widest uppercase transition-colors rounded-[2px] flex items-center gap-2 font-medium shrink-0 bg-brand-beige shadow-xs hover:text-brand-terracotta"
-              >
-                <RotateCcw size={13} />
-                <span>{language === 'tr' ? 'TÜMÜNÜ VARSAYILANA DÖN' : 'RESET ALL TO DEFAULTS'}</span>
-              </button>
             </div>
 
             {/* Showcase Cover Cards Grid */}
@@ -2310,7 +2258,7 @@ export default function AdminPanel({
                                 key={imgUrl}
                                 layout
                                 draggable
-                                onDragStart={(e) => handleItemDragStart(e, idx)}
+                                onDragStart={(e) => handleItemDragStart(e as unknown as React.DragEvent, idx)}
                                 onDragOver={(e) => handleItemDragOver(e, idx)}
                                 onDragEnd={handleItemDragEnd}
                                 className={`relative aspect-[4/5] rounded-[2px] overflow-hidden border bg-brand-sand/10 group cursor-grab active:cursor-grabbing transition-all select-none ${

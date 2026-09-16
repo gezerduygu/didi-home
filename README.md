@@ -1,19 +1,30 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Didi Home
 
-# Run and deploy your AI Studio app
+El yapımı seramik, özel tasarım nakışlı kıyafet ve vintage ev objelerinin
+sergilendiği vitrin ve sipariş sitesi.
 
-This contains everything you need to run your app locally.
-https://ai.studio/apps/4ecb06c8-a7d9-4e2b-9ebf-4bc4c35813b3
+## Kurulum
 
-## Run Locally
+```bash
+npm install
+npm run dev      # http://localhost:3000
+```
 
-**Prerequisites:**  Node.js
+## Komutlar
 
+| Komut | Açıklama |
+|---|---|
+| `npm run dev` | Geliştirme sunucusu |
+| `npm run build` | Üretim derlemesi (`dist/`) |
+| `npm run preview` | Derlemeyi yerelde önizleme |
+| `npm run lint` | TypeScript tip kontrolü |
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Ortam değişkenleri
+
+`.env.example` dosyasını `.env.local` olarak kopyalayıp doldurun.
+Yayındaki değerler Vercel → Settings → Environment Variables altında tutulur.
+
+## Dokümantasyon
+
+Mimari, veri modeli, çalışma kuralları ve süreç günlüğü için **[PROJECT.md](PROJECT.md)**
+dosyasına bakın. Projeye yeni katılan herkes önce o dosyayı okumalıdır.

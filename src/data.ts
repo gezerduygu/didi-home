@@ -1,6 +1,40 @@
 import { Product, CoverSettings, CategoryItem } from './types';
 import { fetchStoreData, saveStoreData } from './supabase';
 
+/**
+ * VERİ KAYBI KORUMASI (bkz. PROJECT.md → Altın kurallar)
+ *
+ * Bulut verisi tarayıcıya inmeden önce yapılan bir kayıt, koddaki örnek veriyi
+ * gerçek kataloğun üzerine yazabilir. Bu bayrak, bulut verisi başarıyla
+ * yüklenene kadar tüm yazma işlemlerini engeller.
+ */
+type StoreKey = 'products' | 'categories' | 'covers';
+
+const cloudLoaded: Record<StoreKey, boolean> = {
+  products: false,
+  categories: false,
+  covers: false
+};
+
+export const isCloudLoaded = (key: StoreKey) => cloudLoaded[key];
+
+export class CloudNotReadyError extends Error {
+  constructor(key: StoreKey) {
+    super(`"${key}" verisi buluttan yüklenmeden kayıt denendi; veri kaybını önlemek için işlem iptal edildi.`);
+    this.name = 'CloudNotReadyError';
+  }
+}
+
+const assertCloudReady = (key: StoreKey) => {
+  if (!cloudLoaded[key]) {
+    console.error(`[Koruma] "${key}" bulut verisi yüklenmeden kayıt denendi, işlem engellendi.`);
+    throw new CloudNotReadyError(key);
+  }
+};
+
+/** Geliştirme sunucusundaki dosya API'si yalnızca yerelde vardır. */
+const isDev = import.meta.env.DEV;
+
 export const INITIAL_PRODUCTS: Product[] = [
   // --- HOUTE COUTURE (Clothes) ---
   {
@@ -254,9 +288,9 @@ export const fetchProductsFromServer = async (): Promise<Product[]> => {
   try {
     const cloudProducts = await fetchStoreData<Product[]>('products', INITIAL_PRODUCTS);
     if (Array.isArray(cloudProducts) && cloudProducts.length > 0) {
+      cloudLoaded.products = true;
       try {
         localStorage.setItem('didi_home_products', JSON.stringify(cloudProducts));
-        localStorage.setItem('didi_products', JSON.stringify(cloudProducts));
       } catch (e) {
         console.warn('localStorage caching failed', e);
       }
@@ -267,41 +301,40 @@ export const fetchProductsFromServer = async (): Promise<Product[]> => {
   }
 
   // 2. Fallback to local dev API if running on Vite dev server
-  try {
-    const res = await fetch('/api/products');
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        try {
-          localStorage.setItem('didi_home_products', JSON.stringify(data));
-          localStorage.setItem('didi_products', JSON.stringify(data));
-        } catch (e) {
-          console.warn('localStorage caching failed', e);
+  if (isDev) {
+    try {
+      const res = await fetch('/api/products');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          cloudLoaded.products = true;
+          return data;
         }
-        return data;
       }
+    } catch (e) {
+      console.warn('Local disk API not reachable, falling back to localStorage');
     }
-  } catch (e) {
-    console.warn('Local disk API not reachable, falling back to localStorage');
   }
   return getStoredProducts();
 };
 
 export const saveProducts = (products: Product[]) => {
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem('didi_home_products', JSON.stringify(products));
-      localStorage.setItem('didi_products', JSON.stringify(products));
-    } catch (e) {
-      console.warn('localStorage caching failed (quota limit reached), saving to Supabase directly:', e);
-    }
-    
-    // 1. Save to Supabase Cloud
-    saveStoreData('products', products).catch(err => {
-      console.warn('[Cloud] Failed to sync products to Supabase:', err);
-    });
+  if (typeof window === 'undefined') return;
+  assertCloudReady('products');
 
-    // 2. Persist permanently to disk file via local API if in dev mode
+  try {
+    localStorage.setItem('didi_home_products', JSON.stringify(products));
+  } catch (e) {
+    console.warn('localStorage caching failed (quota limit reached):', e);
+  }
+
+  // 1. Save to Supabase Cloud
+  saveStoreData('products', products).catch(err => {
+    console.warn('[Cloud] Failed to sync products to Supabase:', err);
+  });
+
+  // 2. Persist to disk file via local dev API (only on the dev server)
+  if (isDev) {
     fetch('/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -342,10 +375,10 @@ export const fetchCoversFromServer = async (): Promise<CoverSettings> => {
   try {
     const cloudCovers = await fetchStoreData<CoverSettings>('covers', DEFAULT_COVERS);
     if (cloudCovers && typeof cloudCovers === 'object') {
+      cloudLoaded.covers = true;
       const merged = { ...DEFAULT_COVERS, ...cloudCovers };
       try {
         localStorage.setItem('didi_home_covers', JSON.stringify(merged));
-        localStorage.setItem('didi_covers', JSON.stringify(merged));
       } catch (e) {
         console.warn('localStorage caching failed for covers', e);
       }
@@ -356,23 +389,19 @@ export const fetchCoversFromServer = async (): Promise<CoverSettings> => {
   }
 
   // 2. Fallback to local dev API
-  try {
-    const res = await fetch('/api/covers');
-    if (res.ok) {
-      const data = await res.json();
-      if (data && typeof data === 'object') {
-        const merged = { ...DEFAULT_COVERS, ...data };
-        try {
-          localStorage.setItem('didi_home_covers', JSON.stringify(merged));
-          localStorage.setItem('didi_covers', JSON.stringify(merged));
-        } catch (e) {
-          console.warn('localStorage caching failed for covers', e);
+  if (isDev) {
+    try {
+      const res = await fetch('/api/covers');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && typeof data === 'object') {
+          cloudLoaded.covers = true;
+          return { ...DEFAULT_COVERS, ...data };
         }
-        return merged;
       }
+    } catch (e) {
+      console.warn('Local disk API not reachable for covers, falling back to localStorage');
     }
-  } catch (e) {
-    console.warn('Local disk API not reachable for covers, falling back to localStorage');
   }
   return getStoredCovers();
 };
@@ -451,9 +480,9 @@ export const fetchCategoriesFromServer = async (): Promise<CategoryItem[]> => {
   try {
     const cloudCategories = await fetchStoreData<CategoryItem[]>('categories', DEFAULT_CATEGORIES);
     if (Array.isArray(cloudCategories) && cloudCategories.length > 0) {
+      cloudLoaded.categories = true;
       try {
         localStorage.setItem('didi_home_categories', JSON.stringify(cloudCategories));
-        localStorage.setItem('didi_categories', JSON.stringify(cloudCategories));
       } catch (e) {
         console.warn('localStorage caching failed for categories', e);
       }
@@ -464,41 +493,38 @@ export const fetchCategoriesFromServer = async (): Promise<CategoryItem[]> => {
   }
 
   // 2. Fallback to local dev API
-  try {
-    const res = await fetch('/api/categories');
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        try {
-          localStorage.setItem('didi_home_categories', JSON.stringify(data));
-          localStorage.setItem('didi_categories', JSON.stringify(data));
-        } catch (e) {
-          console.warn('localStorage caching failed for categories', e);
+  if (isDev) {
+    try {
+      const res = await fetch('/api/categories');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          cloudLoaded.categories = true;
+          return data;
         }
-        return data;
       }
+    } catch (e) {
+      console.warn('Local disk API not reachable for categories, falling back to localStorage');
     }
-  } catch (e) {
-    console.warn('Local disk API not reachable for categories, falling back to localStorage');
   }
   return getStoredCategories();
 };
 
 export const saveCategories = (categories: CategoryItem[]) => {
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem('didi_home_categories', JSON.stringify(categories));
-      localStorage.setItem('didi_categories', JSON.stringify(categories));
-    } catch (e) {
-      console.warn('localStorage caching failed for categories', e);
-    }
-    
-    // 1. Save to Supabase Cloud
-    saveStoreData('categories', categories).catch(err => {
-      console.warn('[Cloud] Failed to sync categories to Supabase:', err);
-    });
+  if (typeof window === 'undefined') return;
+  assertCloudReady('categories');
 
-    // 2. Persist permanently to disk file via local API
+  try {
+    localStorage.setItem('didi_home_categories', JSON.stringify(categories));
+  } catch (e) {
+    console.warn('localStorage caching failed for categories', e);
+  }
+
+  saveStoreData('categories', categories).catch(err => {
+    console.warn('[Cloud] Failed to sync categories to Supabase:', err);
+  });
+
+  if (isDev) {
     fetch('/api/categories', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -508,20 +534,20 @@ export const saveCategories = (categories: CategoryItem[]) => {
 };
 
 export const saveCovers = (covers: CoverSettings) => {
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem('didi_home_covers', JSON.stringify(covers));
-      localStorage.setItem('didi_covers', JSON.stringify(covers));
-    } catch (e) {
-      console.warn('localStorage caching failed for covers', e);
-    }
-    
-    // 1. Save to Supabase Cloud
-    saveStoreData('covers', covers).catch(err => {
-      console.warn('[Cloud] Failed to sync covers to Supabase:', err);
-    });
+  if (typeof window === 'undefined') return;
+  assertCloudReady('covers');
 
-    // 2. Persist permanently to disk file via local API
+  try {
+    localStorage.setItem('didi_home_covers', JSON.stringify(covers));
+  } catch (e) {
+    console.warn('localStorage caching failed for covers', e);
+  }
+
+  saveStoreData('covers', covers).catch(err => {
+    console.warn('[Cloud] Failed to sync covers to Supabase:', err);
+  });
+
+  if (isDev) {
     fetch('/api/covers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

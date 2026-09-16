@@ -256,7 +256,7 @@ export default function CartDrawer({
                         value={shippingInfo.name}
                         onChange={handleInputChange}
                         className="w-full bg-transparent border border-brand-sand/80 focus:border-brand-charcoal px-3 py-2 rounded-[2px] text-sm text-brand-charcoal outline-none transition-all duration-200"
-                        placeholder={language === 'tr' ? 'Örn: Serhat Kabais' : 'e.g. John Doe'}
+                        placeholder={language === 'tr' ? 'Örn: Ayşe Yılmaz' : 'e.g. Jane Doe'}
                       />
                     </div>
 
