@@ -172,6 +172,8 @@ export default function ProductDetailModal({
                       <img
                         src={img}
                         alt={`${translatedProduct.title} ${idx + 1}`}
+                        loading="lazy"
+                        decoding="async"
                         referrerPolicy="no-referrer"
                         className="w-full h-full object-cover object-center"
                       />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, ArrowRight, Heart } from 'lucide-react';
 
@@ -8,7 +8,9 @@ import ProductGrid from './components/ProductGrid';
 import ProductDetailModal from './components/ProductDetailModal';
 import CartDrawer from './components/CartDrawer';
 import AboutModal from './components/AboutModal';
-import AdminPanel from './components/AdminPanel';
+// Yönetim paneli ayrı bir dosya olarak yalnızca /admin açılınca indirilir;
+// ziyaretçiler panel kodunu hiç indirmez.
+const AdminPanel = lazy(() => import('./components/AdminPanel'));
 
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
@@ -340,6 +342,34 @@ export default function App() {
     productsRef.current = products;
   }, [products]);
 
+  // Sekme başlığı ve açıklama: açık ürün / kategoriye göre güncellenir
+  // (tarayıcı geçmişi, sekmeler ve arama motorları için)
+  useEffect(() => {
+    const varsayilanBaslik = 'Didi Home · El Yapımı Seramik, Nakışlı Kaftan ve Vintage Ev Objeleri';
+    const aciklamaEtiketi = document.querySelector('meta[name="description"]');
+    if (!aciklamaEtiketi?.getAttribute('data-varsayilan')) {
+      aciklamaEtiketi?.setAttribute('data-varsayilan', aciklamaEtiketi.getAttribute('content') || '');
+    }
+    const varsayilanAciklama = aciklamaEtiketi?.getAttribute('data-varsayilan') || '';
+
+    if (isAdminOpen) {
+      document.title = 'Yönetim Paneli · Didi Home';
+    } else if (selectedProduct) {
+      const baslik = language === 'en' && selectedProduct.titleEn ? selectedProduct.titleEn : selectedProduct.title;
+      document.title = `${baslik} · Didi Home`;
+      const hikaye = (language === 'en' && selectedProduct.storyEn) || selectedProduct.story || '';
+      aciklamaEtiketi?.setAttribute('content', hikaye.slice(0, 160) || varsayilanAciklama);
+    } else if (activeCategory) {
+      const kategori = categories.find((c) => c.id === activeCategory);
+      const ad = kategori ? (language === 'en' && kategori.titleEn ? kategori.titleEn : kategori.title) : activeCategory;
+      document.title = `${ad} · Didi Home`;
+      aciklamaEtiketi?.setAttribute('content', kategori?.description || varsayilanAciklama);
+    } else {
+      document.title = varsayilanBaslik;
+      aciklamaEtiketi?.setAttribute('content', varsayilanAciklama);
+    }
+  }, [isAdminOpen, selectedProduct, activeCategory, categories, language]);
+
   // Scroll to top on category change (fixes scrolled home page issue)
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -570,6 +600,13 @@ export default function App() {
           )}
         </AnimatePresence>
 
+        <Suspense
+          fallback={
+            <div className="min-h-[85vh] flex items-center justify-center">
+              <div className="w-6 h-6 border-2 border-brand-sand border-t-brand-terracotta rounded-full animate-spin" />
+            </div>
+          }
+        >
         <AdminPanel
           products={products}
           categories={categories}
@@ -587,6 +624,7 @@ export default function App() {
           onDeleteCategory={handleDeleteCategory}
           onClose={handleCloseAdmin}
         />
+        </Suspense>
       </div>
     );
   }

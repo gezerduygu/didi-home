@@ -279,6 +279,9 @@ export default function ProductGrid({
                   <img
                     src={product.image}
                     alt={product.title}
+                    // İlk satır hemen, aşağıdakiler ekrana yaklaşınca yüklenir
+                    loading={index < 4 ? 'eager' : 'lazy'}
+                    decoding="async"
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover object-center transition-all duration-[1000ms] group-hover:scale-105 filter saturate-[0.95] group-hover:saturate-100"
                   />
