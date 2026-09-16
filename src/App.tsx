@@ -30,6 +30,13 @@ interface HistoryState {
   isCartOpen: boolean;
   isAboutOpen: boolean;
   isAdminOpen: boolean;
+  /**
+   * Bu geçmiş kaydını site İÇİNDEN biz mi ekledik?
+   * Doğrudan bağlantıyla gelinen sayfalarda (Instagram'da paylaşılan ürün linki,
+   * adres çubuğuna yazılan /admin) "geri" gitmek ziyaretçiyi siteden çıkarır.
+   * Pencereler yalnızca bu bayrak doluysa history.back() ile kapatılır.
+   */
+  pushed?: boolean;
 }
 
 const parseUrlState = (): HistoryState => {
@@ -118,7 +125,10 @@ export default function App() {
     fetchProductsFromServer().then(prods => {
       if (prods && prods.length > 0) {
         setProducts(prods);
-        if (initial.productId) {
+        // Veri geç gelebilir. Kullanıcı bu arada ürünü kapattıysa ya da başka
+        // sayfaya geçtiyse pencereyi yeniden AÇMA; yalnızca hâlâ o üründeyse güncelle.
+        const halaAyniUrunde = window.history.state?.productId === initial.productId;
+        if (initial.productId && halaAyniUrunde) {
           const found = prods.find(p => p.id === initial.productId);
           if (found) setSelectedProduct(found);
         }
@@ -202,7 +212,8 @@ export default function App() {
       productId: product.id,
       isCartOpen: false,
       isAboutOpen: false,
-      isAdminOpen: false
+      isAdminOpen: false,
+      pushed: true
     };
 
     window.history.pushState(newState, '', url);
@@ -210,7 +221,7 @@ export default function App() {
   };
 
   const handleCloseProduct = () => {
-    if (window.history.state?.productId) {
+    if (window.history.state?.productId && window.history.state?.pushed) {
       window.history.back();
     } else {
       const url = activeCategory ? `/category/${activeCategory}` : '/';
@@ -232,14 +243,15 @@ export default function App() {
       productId: selectedProduct?.id || null,
       isCartOpen: true,
       isAboutOpen: false,
-      isAdminOpen: false
+      isAdminOpen: false,
+      pushed: true
     };
     window.history.pushState(newState, '');
     setIsCartOpen(true);
   };
 
   const handleCloseCart = () => {
-    if (window.history.state?.isCartOpen) {
+    if (window.history.state?.isCartOpen && window.history.state?.pushed) {
       window.history.back();
     } else {
       setIsCartOpen(false);
@@ -252,14 +264,15 @@ export default function App() {
       productId: selectedProduct?.id || null,
       isCartOpen: false,
       isAboutOpen: true,
-      isAdminOpen: false
+      isAdminOpen: false,
+      pushed: true
     };
     window.history.pushState(newState, '');
     setIsAboutOpen(true);
   };
 
   const handleCloseAbout = () => {
-    if (window.history.state?.isAboutOpen) {
+    if (window.history.state?.isAboutOpen && window.history.state?.pushed) {
       window.history.back();
     } else {
       setIsAboutOpen(false);
@@ -268,7 +281,7 @@ export default function App() {
 
   const handleCloseAdmin = () => {
     // Panelde yapılan değişiklikler zaten bellekteki listede; yeniden okumaya gerek yok.
-    if (window.history.state?.isAdminOpen) {
+    if (window.history.state?.isAdminOpen && window.history.state?.pushed) {
       window.history.back();
     } else {
       const newState: HistoryState = {

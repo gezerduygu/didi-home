@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Trash2, Plus, Minus, CreditCard, ShoppingBag, Check } from 'lucide-react';
 import { CartItem } from '../types';
 import { useLanguage } from '../context/LanguageContext';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 import {
   siparisNoUret,
   siparisMesajiOlustur,
@@ -41,6 +42,8 @@ export default function CartDrawer({
   // Sipariş tamamlandığında gösterilecek bilgiler
   const [siparisNo, setSiparisNo] = useState('');
   const [whatsappLinki, setWhatsappLinki] = useState('');
+
+  useModalBehavior(onClose, isOpen);
 
   if (!isOpen) return null;
 

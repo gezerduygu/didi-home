@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { X, Heart, Recycle, Sparkles } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 
 interface AboutModalProps {
   isOpen: boolean;
@@ -10,7 +11,8 @@ interface AboutModalProps {
 
 export default function AboutModal({ isOpen, onClose }: AboutModalProps) {
   const { t } = useLanguage();
-  
+  useModalBehavior(onClose, isOpen);
+
   if (!isOpen) return null;
 
   return (

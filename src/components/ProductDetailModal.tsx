@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { X, ShoppingBag, Check, ShieldCheck, Sparkles } from 'lucide-react';
 import { Product } from '../types';
 import { useLanguage } from '../context/LanguageContext';
+import { useModalBehavior } from '../hooks/useModalBehavior';
+
+/** Parmakla kaydırmanın "fotoğraf değiştir" sayılması için gereken en az mesafe (px). */
+const KAYDIRMA_ESIGI = 45;
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -19,10 +23,26 @@ export default function ProductDetailModal({
   const [isAdded, setIsAdded] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
+  const kaydirmaBaslangici = useRef<number | null>(null);
+
+  useModalBehavior(onClose, Boolean(product));
+
   // Reset image index when product changes
-  React.useEffect(() => {
+  useEffect(() => {
     setSelectedImageIndex(0);
   }, [product]);
+
+  // Klavyede sağ/sol ok ile fotoğraf değiştirme
+  const gorselSayisi = product ? (product.images?.length || 1) : 0;
+  useEffect(() => {
+    if (gorselSayisi < 2) return;
+    const tus = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') setSelectedImageIndex((i) => (i + 1) % gorselSayisi);
+      if (e.key === 'ArrowLeft') setSelectedImageIndex((i) => (i - 1 + gorselSayisi) % gorselSayisi);
+    };
+    window.addEventListener('keydown', tus);
+    return () => window.removeEventListener('keydown', tus);
+  }, [gorselSayisi]);
 
   if (!product) return null;
 
@@ -86,7 +106,17 @@ export default function ProductDetailModal({
             <div className="md:col-span-6 relative bg-brand-sand/20 group flex flex-col justify-between overflow-hidden border-b md:border-b-0 md:border-r border-brand-sand/30 min-h-[350px] md:min-h-[500px]">
               
               {/* Main Image Container */}
-              <div className="relative flex-1 w-full h-full flex items-center justify-center p-4 md:p-6 overflow-hidden bg-brand-sand/10">
+              <div
+                className="relative flex-1 w-full h-full flex items-center justify-center p-4 md:p-6 overflow-hidden bg-brand-sand/10 touch-pan-y"
+                onTouchStart={(e) => { kaydirmaBaslangici.current = e.touches[0].clientX; }}
+                onTouchEnd={(e) => {
+                  if (kaydirmaBaslangici.current === null || images.length < 2) return;
+                  const fark = e.changedTouches[0].clientX - kaydirmaBaslangici.current;
+                  kaydirmaBaslangici.current = null;
+                  if (fark <= -KAYDIRMA_ESIGI) setSelectedImageIndex((i) => (i + 1) % images.length);
+                  if (fark >= KAYDIRMA_ESIGI) setSelectedImageIndex((i) => (i - 1 + images.length) % images.length);
+                }}
+              >
                 <motion.img
                   key={selectedImageIndex}
                   src={currentImage}
@@ -103,7 +133,7 @@ export default function ProductDetailModal({
                   <>
                     <button
                       onClick={handlePrevImage}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 bg-brand-beige/90 hover:bg-brand-beige text-brand-charcoal p-2 rounded-full shadow-md transition-all duration-200 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 bg-brand-beige/90 hover:bg-brand-beige text-brand-charcoal p-2 rounded-full shadow-md transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100"
                       aria-label="Previous image"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
@@ -112,7 +142,7 @@ export default function ProductDetailModal({
                     </button>
                     <button
                       onClick={handleNextImage}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 bg-brand-beige/90 hover:bg-brand-beige text-brand-charcoal p-2 rounded-full shadow-md transition-all duration-200 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 bg-brand-beige/90 hover:bg-brand-beige text-brand-charcoal p-2 rounded-full shadow-md transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100"
                       aria-label="Next image"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">

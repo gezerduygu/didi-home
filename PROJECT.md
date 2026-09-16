@@ -286,6 +286,30 @@ sunduğu standart seçeneklere (16:9 / 4:3 / 1:1 / 3:4 / 9:16) hizalandı.
   gösteriliyor, 3:4 önerilen olarak vurgulanıyor, 16:9 ve 9:16 kaçınılacak olarak işaretli.
 - Aynı rehber kapak yönetimi sekmesine de kondu.
 
+
+### 2026-09-16 — Mobil deneyim ve gezinme hataları
+
+**Yeni: `src/hooks/useModalBehavior.ts`** — ürün detayı, sepet ve Hikâyemiz pencereleri için ortak davranış:
+- Pencere açıkken arka plandaki sayfa kaymıyor.
+- ESC yalnızca en üstteki pencereyi kapatıyor (ürün detayının üstünde sepet açıksa önce sepet kapanır).
+- Yönetim panelindeki formlarda **bilerek kullanılmadı**: yanlışlıkla basılan ESC yarım formu kapatıp girilen bilgiyi kaybettirmesin.
+
+**Ürün detay penceresi**
+- Fotoğraf okları telefonda artık görünüyor (masaüstünde eskisi gibi fare üzerine gelince beliriyor; tasarım aynı).
+- Parmakla sağa/sola kaydırarak fotoğraf değiştirme eklendi (45 px eşik; kısa dokunuş fotoğrafı değiştirmez).
+- Klavyede sağ/sol ok tuşlarıyla fotoğraf değiştirme eklendi.
+
+**Düzeltilen gezinme hataları**
+- Doğrudan bağlantıyla açılan ürün sayfası (ör. Instagram/WhatsApp'ta paylaşılan link) kapatılınca ziyaretçi
+  **sitenin dışına** atılıyordu. Artık kategori sayfasında kalıyor. Aynı düzeltme `/admin` için de yapıldı
+  (footer bağlantısı kaldırıldığından panelden "Mağazaya dön" siteden çıkarıyordu).
+  Çözüm: site içinden eklenen geçmiş kayıtları `pushed: true` ile işaretleniyor; yalnızca bunlarda `history.back()` kullanılıyor.
+- Bulut verisi geç geldiğinde, kullanıcının çoktan kapattığı ürün penceresi yeniden açılıyordu. Düzeltildi.
+
+**Doğrulama (375×812 mobil görünümde):** arka plan kilidi, kaydırma (0→1→2→1), kısa dokunuşun etkisizliği,
+klavye okları, ESC ile kapanma, doğrudan bağlantıda sitede kalma, 16 sn sonra gelen verinin pencereyi
+yeniden açmaması ve site içi akışta geri gitme tek tek test edildi.
+
 ---
 
 ## 9. Alınan kararlar
