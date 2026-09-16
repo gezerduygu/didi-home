@@ -121,7 +121,7 @@ son yazan kazanır, fotoğraflar JSON içine base64 olarak gömülüdür (5,6 MB
   `story`, `images[]`, `status` (taslak/yayında/satıldı), `sort_order`,
   `deleted_at`, `updated_at`, İngilizce alanlar)
 - `categories` — kategori başına bir satır
-- `settings` — kapak görselleri gibi tekil ayarlar
+- `settings` — kapak görselleri gibi genel ayarlar
 - `orders` — gelen siparişler
 - `revisions` — her değişiklikten önceki hali saklayan otomatik sürüm geçmişi
 - Fotoğraflar `product-images` adlı Supabase Storage klasöründe; veritabanında
