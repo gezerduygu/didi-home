@@ -53,7 +53,9 @@ export default function ProductDetailModal({
   const translatedProduct = translateProduct(product);
 
   const handleAddToCart = () => {
-    onAddToCart(translatedProduct);
+    // Sepete ürünün asıl (Türkçe) kaydı eklenir; sepet ve sipariş mesajı
+    // ekranda kendi dilinde gösterir, satıcıya giden mesaj tutarlı kalır.
+    onAddToCart(product);
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 2000);
   };

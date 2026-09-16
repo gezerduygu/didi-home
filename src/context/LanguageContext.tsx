@@ -229,108 +229,6 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
   }
 };
 
-// English Translations for default product titles, materials, conditions and stories
-const PRODUCT_TRANSLATIONS: Record<string, Partial<Product>> = {
-  'hc-yellow-kaftan': {
-    title: 'Yellow Hand-Embroidered Cotton Kaftan',
-    story: 'This custom piece in warm yellow tones merges with the breathable texture of natural raw cotton, turning into a unique work of art with traditional hand embroidery on its cuffs and hem. Prepared individually in our atelier, this piece represents the noble stance of the modern, bohemian woman. It offers comfort and luxury together with its side pockets and elegant belt.',
-    condition: 'Atelier Limited Production (Single Piece)',
-    material: '100% Handwoven Raw Cotton',
-    dimensions: 'Oversize (Fits S - M - L)'
-  },
-  'hc-kaftan': {
-    title: 'Emerald Green Hand-Embroidered Kaftan',
-    story: 'Carrying Moroccan breezes and noble handwork, this masterpiece kaftan dazzles with its deep emerald green raw linen texture and magnificent diamond-shaped hand embroidery on the back. While shamanic motifs, birds, and elephants reflect traditional stories, the colorful embroideries on the cuffs and its practical side pockets offer the pinnacle of modern bohemian elegance.',
-    condition: 'Limited Special Collection',
-    material: '100% Natural Raw Linen',
-    dimensions: 'Standard Size (Oversize)'
-  },
-  'hc-1': {
-    title: 'Linen Sand Dress',
-    story: 'Handcrafted from pure, unprocessed linen, this dress lets your skin breathe on hot summer days with its draped and relaxed cut. It reflects the calmness of sand tones.',
-    condition: 'New Collection',
-    material: '100% Raw Linen',
-    dimensions: 'Standard Size (Oversize)'
-  },
-  'hc-2': {
-    title: 'Nostalgia Knit Cardigan',
-    story: 'Dating back to the 1980s, this hand-knit cardigan is a mohair-wool blend. It is a true vintage piece with its soft structure, elegant shoulder patterns, and vintage mother-of-pearl buttons.',
-    condition: 'Excellent (Vintage Second-Hand)',
-    material: 'Mohair & Merino Wool Blend',
-    dimensions: 'Fits S - M'
-  },
-  'hc-3': {
-    title: 'Organic Clay Kimono',
-    story: 'Woven from organic cotton yarns obtained through sustainable agriculture, this chic and bohemian kimono is dyed in natural root clay color. It offers effortless elegance for home wear or beach transitions.',
-    condition: 'New Collection',
-    material: '100% Organic Cotton',
-    dimensions: 'Unisex S/M/L'
-  },
-  'hc-4': {
-    title: 'Antique Detailed Satin Blouse',
-    story: 'Produced from soft matte satin with delicate lace embroidery on the chest, this blouse is a rare piece that will add a nostalgic atmosphere to your wardrobe.',
-    condition: 'Very Good (Vintage)',
-    material: 'Natural Silk & Viscose Blend',
-    dimensions: 'Size M'
-  },
-  'ser-1': {
-    title: 'Wabi-Sabi Raw Sand Vase',
-    story: 'Hand-shaped with chamotte clay in the Didi Home atelier, this vase symbolizes the beauty of imperfections. With its unglazed, rough, and sandy texture, it radiates the raw energy of the earth at every glance.',
-    condition: 'Handmade Artist Piece',
-    material: 'Natural Chamotte Clay',
-    dimensions: 'Height: 24 cm | Diameter: 14 cm'
-  },
-  'ser-2': {
-    title: 'Terracotta Tea Set (Set of 2)',
-    story: 'Produced on the wheel from traditional terracotta clay, this set features two delicate tea/coffee cups with a food-safe clear glaze inside, while preserving the warm matte texture of the soil on the outside.',
-    condition: 'Handmade',
-    material: 'Red Terracotta Clay',
-    dimensions: 'Volume: 180 ml | Qty: 2'
-  },
-  'ser-3': {
-    title: 'Organically Formed Fruit Bowl',
-    story: 'A massive fruit bowl inspired by nature’s asymmetrical lines. Creating a sculptural focal point on your table, it is completely unique with brown spots occurring naturally during firing.',
-    condition: 'Handmade Artist Piece',
-    material: 'High-Fired Stoneware Clay',
-    dimensions: 'Diameter: 32 cm | Height: 8 cm'
-  },
-  'ser-4': {
-    title: 'Earthy Underglaze Incense Burner',
-    story: 'Designed to heal your living space with essential oils, this handmade incense burner is practical with its two-piece design and easy on the eyes with its minimalist circular holes.',
-    condition: 'Handmade',
-    material: 'Underglaze Ceramic Clay',
-    dimensions: 'Height: 11 cm | Width: 10 cm'
-  },
-  'eh-1': {
-    title: 'Brass Antique Candle Holder Set',
-    story: 'Dating back to the 1970s, this candle holder set is made using the brass casting technique. Carrying the delicate patina of time, this brass duo brings vintage spirit to your tables and mantels.',
-    condition: 'Excellent (Vintage Patina)',
-    material: 'Solid Brass',
-    dimensions: 'Height: 20 cm and 25 cm'
-  },
-  'eh-2': {
-    title: 'Rattan Hand Mirror',
-    story: 'Framed by palm leaves meticulously hand-woven, this decorative hand mirror is an indispensable companion for bohemian bedrooms and restful makeup tables.',
-    condition: 'Very Good (Ecological Art)',
-    material: 'Natural Rattan & Glass Mirror',
-    dimensions: 'Width: 28 cm | Height: 40 cm'
-  },
-  'eh-3': {
-    title: 'Root-Dyed Vintage Kilim Cushion',
-    story: 'An exclusive cushion cover selected and transformed from hand-dyed wool kilims in Anatolia, dating back over 50 years. It features cotton lining and a hidden zipper on the back.',
-    condition: 'Collectible Vintage',
-    material: '100% Handwoven Wool Kilim',
-    dimensions: '40 cm x 40 cm'
-  },
-  'eh-4': {
-    title: 'Alabaster Sculptural Stone Sphere',
-    story: 'A decorative object shaped on a hand lathe from alabaster stone—the translucent cousin of marble—in relaxing cream-beige tones. It radiates a noble semi-translucent glow under sunlight.',
-    condition: 'Vintage Find',
-    material: 'Natural Alabaster Stone',
-    dimensions: 'Diameter: 12 cm'
-  }
-};
-
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(() => {
     if (typeof window !== 'undefined') {
@@ -351,23 +249,22 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return TRANSLATIONS[language][key] || key;
   };
 
+  /**
+   * Ürünün seçili dildeki hali. İngilizce metinler veritabanında (title_en, story_en...)
+   * durur ve yönetim panelinde kaydederken otomatik çevrilir. Boş olan alanın
+   * Türkçesi gösterilir. (Eskiden koda gömülü bir tablo vardı; panelden yapılan
+   * düzenlemeleri eziyordu, kaldırıldı.)
+   */
   const translateProduct = (product: Product): Product => {
-    if (language === 'tr') return product; // Already in Turkish
-    
-    const translation = PRODUCT_TRANSLATIONS[product.id];
-    if (translation) {
-      return {
-        ...product,
-        title: translation.title || product.title,
-        story: translation.story || product.story,
-        condition: translation.condition || product.condition,
-        material: translation.material || product.material,
-        dimensions: translation.dimensions || product.dimensions,
-      };
-    }
-    
-    // For newly added custom products, if they don't have English translations, we can leave them or do a gentle auto-translation fallback for UI elements
-    return product;
+    if (language === 'tr') return product;
+    return {
+      ...product,
+      title: product.titleEn || product.title,
+      story: product.storyEn || product.story,
+      condition: product.conditionEn || product.condition,
+      material: product.materialEn || product.material,
+      dimensions: product.dimensionsEn || product.dimensions
+    };
   };
 
   return (

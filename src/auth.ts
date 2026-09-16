@@ -10,17 +10,18 @@
  * değiştirse bile veritabanı yazma iznini vermez.
  *
  * Yeni yönetici eklemek için İKİ yere e-posta eklenir:
- *   1. Aşağıdaki YONETICI_EPOSTALARI listesi
+ *   1. shared/yoneticiler.ts içindeki YONETICI_EPOSTALARI listesi
  *   2. sql/02_security.sql içindeki is_admin() fonksiyonu (sonra tekrar çalıştırılır)
  */
 
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
-export const YONETICI_EPOSTALARI = ['gezerduygu@gmail.com'];
+import { YONETICI_EPOSTALARI, yoneticiEpostasiMi } from '../shared/yoneticiler';
 
-export const yoneticiMi = (session: Session | null): boolean =>
-  Boolean(session?.user?.email && YONETICI_EPOSTALARI.includes(session.user.email.toLowerCase()));
+export { YONETICI_EPOSTALARI };
+
+export const yoneticiMi = (session: Session | null): boolean => yoneticiEpostasiMi(session?.user?.email);
 
 const panelAdresi = () => `${window.location.origin}/admin`;
 

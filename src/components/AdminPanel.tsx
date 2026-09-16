@@ -32,7 +32,8 @@ import {
   ArrowUpDown,
   Archive,
   Download,
-  Undo2
+  Undo2,
+  Languages
 } from 'lucide-react';
 import { Product, Category, CategoryItem, ProductStatus } from '../types';
 import { listDeletedProducts, exportAll, StoreError, listOrders } from '../store';
@@ -40,6 +41,7 @@ import { gorselYukle } from '../images';
 import { cikisYap } from '../auth';
 import AdminLogin from './AdminLogin';
 import AdminOrders from './AdminOrders';
+import { ingilizceyeCevir } from '../translate';
 import { useLanguage } from '../context/LanguageContext';
 
 interface AdminPanelProps {
@@ -250,6 +252,16 @@ export default function AdminPanel({
   const [formCondition, setFormCondition] = useState('El Yapımı Sanatçı Eseri');
   const [formMaterial, setFormMaterial] = useState('');
   const [formDimensions, setFormDimensions] = useState('');
+  // İngilizce alanlar (boş kalırsa sitede Türkçesi gösterilir)
+  const [formTitleEn, setFormTitleEn] = useState('');
+  const [formStoryEn, setFormStoryEn] = useState('');
+  const [formConditionEn, setFormConditionEn] = useState('');
+  const [formMaterialEn, setFormMaterialEn] = useState('');
+  const [formDimensionsEn, setFormDimensionsEn] = useState('');
+  const [cevriliyor, setCevriliyor] = useState(false);
+  const [ceviriMesaji, setCeviriMesaji] = useState('');
+  const [katCevriliyor, setKatCevriliyor] = useState(false);
+  const [topluCeviri, setTopluCeviri] = useState<{ yapilan: number; toplam: number } | null>(null);
   const [formIsSecondHand, setFormIsSecondHand] = useState(false);
   const [formStatus, setFormStatus] = useState<ProductStatus>('yayinda');
   const [formImages, setFormImages] = useState<string[]>([]);
@@ -386,7 +398,7 @@ export default function AdminPanel({
     }
   };
 
-  const handleCategorySubmit = (e: React.FormEvent) => {
+  const handleCategorySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const finalId = (catFormId.trim() || slugify(catFormTitle)).trim();
     if (!finalId) {
@@ -399,14 +411,22 @@ export default function AdminPanel({
       return;
     }
 
+    // Otomatik çeviri: İngilizce alanların hepsi boşsa kayıttan önce bir kez çevrilir.
+    // Çeviri başarısız olsa bile kategori kaydedilir; sitede Türkçesi görünür.
+    let en = { titleEn: catFormTitleEn, subtitleEn: catFormSubtitleEn, descriptionEn: catFormDescriptionEn };
+    if (!en.titleEn.trim() && !en.subtitleEn.trim() && !en.descriptionEn.trim()) {
+      const cevrilen = await kategoriFormunuCevir(true);
+      if (cevrilen) en = cevrilen;
+    }
+
     const newCategoryItem: CategoryItem = {
       id: finalId,
       title: catFormTitle.trim() || finalId,
-      titleEn: catFormTitleEn.trim() || undefined,
+      titleEn: en.titleEn.trim() || undefined,
       subtitle: catFormSubtitle.trim() || undefined,
-      subtitleEn: catFormSubtitleEn.trim() || undefined,
+      subtitleEn: en.subtitleEn.trim() || undefined,
       description: catFormDescription.trim() || undefined,
-      descriptionEn: catFormDescriptionEn.trim() || undefined,
+      descriptionEn: en.descriptionEn.trim() || undefined,
       image: catFormImage || undefined,
       subcategories: catFormSubcategories.length > 0 ? catFormSubcategories : undefined
     };
@@ -491,6 +511,12 @@ export default function AdminPanel({
     setFormCondition(language === 'tr' ? 'El Yapımı Sanatçı Eseri' : 'Handcrafted Artist Piece');
     setFormMaterial('');
     setFormDimensions('');
+    setFormTitleEn('');
+    setFormStoryEn('');
+    setFormConditionEn('');
+    setFormMaterialEn('');
+    setFormDimensionsEn('');
+    setCeviriMesaji('');
     setFormIsSecondHand(false);
     setFormStatus('yayinda');
     const presets = PRESET_IMAGES[defaultCat] || PRESET_IMAGES['seramik'];
@@ -514,6 +540,12 @@ export default function AdminPanel({
     setFormCondition(product.condition || '');
     setFormMaterial(product.material || '');
     setFormDimensions(product.dimensions || '');
+    setFormTitleEn(product.titleEn || '');
+    setFormStoryEn(product.storyEn || '');
+    setFormConditionEn(product.conditionEn || '');
+    setFormMaterialEn(product.materialEn || '');
+    setFormDimensionsEn(product.dimensionsEn || '');
+    setCeviriMesaji('');
     setFormIsSecondHand(product.isSecondHand ?? false);
     setFormStatus(product.status ?? 'yayinda');
     
@@ -643,7 +675,7 @@ export default function AdminPanel({
   };
 
   // Form Submit (Save / Edit)
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formTitle || !formPrice || !formStory || formImages.length === 0 || !formImages[0]) {
       alert(
@@ -664,6 +696,27 @@ export default function AdminPanel({
       return;
     }
 
+    // Otomatik çeviri: İngilizce başlık ve hikâye boşsa kayıttan önce bir kez çevrilir.
+    // Çeviri başarısız olsa bile ürün kaydedilir; sitede Türkçesi görünür.
+    let en = {
+      titleEn: formTitleEn,
+      storyEn: formStoryEn,
+      conditionEn: formConditionEn,
+      materialEn: formMaterialEn,
+      dimensionsEn: formDimensionsEn
+    };
+    if (!formTitleEn.trim() && !formStoryEn.trim()) {
+      const cevrilen = await urunFormunuCevir(true);
+      if (cevrilen) en = cevrilen;
+    }
+    const enAlanlari = {
+      titleEn: en.titleEn.trim() || undefined,
+      storyEn: en.storyEn.trim() || undefined,
+      conditionEn: en.conditionEn.trim() || undefined,
+      materialEn: en.materialEn.trim() || undefined,
+      dimensionsEn: en.dimensionsEn.trim() || undefined
+    };
+
     if (editingProduct) {
       // Editing
       const updated: Product = {
@@ -680,6 +733,7 @@ export default function AdminPanel({
         dimensions: formDimensions || undefined,
         isSecondHand: formIsSecondHand,
         status: formStatus,
+        ...enAlanlari,
       };
       onUpdateProduct(updated);
     } else {
@@ -698,12 +752,111 @@ export default function AdminPanel({
         dimensions: formDimensions || undefined,
         isSecondHand: formIsSecondHand,
         status: formStatus,
+        ...enAlanlari,
         createdAt: new Date().toISOString()
       };
       onAddProduct(created);
     }
 
     setIsFormOpen(false);
+  };
+
+  // --- OTOMATİK ÇEVİRİ ---
+  // Ürün formundaki Türkçe metinleri çevirip İngilizce alanları doldurur.
+  const urunFormunuCevir = async (sessiz: boolean) => {
+    setCevriliyor(true);
+    if (!sessiz) setCeviriMesaji('');
+    try {
+      const c = await ingilizceyeCevir({
+        title: formTitle,
+        story: formStory,
+        condition: formCondition,
+        material: formMaterial,
+        dimensions: formDimensions
+      });
+      const sonuc = {
+        titleEn: c.title ?? '',
+        storyEn: c.story ?? '',
+        conditionEn: c.condition ?? '',
+        materialEn: c.material ?? '',
+        dimensionsEn: c.dimensions ?? ''
+      };
+      setFormTitleEn(sonuc.titleEn);
+      setFormStoryEn(sonuc.storyEn);
+      setFormConditionEn(sonuc.conditionEn);
+      setFormMaterialEn(sonuc.materialEn);
+      setFormDimensionsEn(sonuc.dimensionsEn);
+      if (!sessiz) {
+        setCeviriMesaji(language === 'tr' ? 'Çeviri hazır. Kontrol edip kaydedebilirsiniz.' : 'Translation ready. Review and save.');
+      }
+      return sonuc;
+    } catch (err) {
+      console.warn('[Çeviri]', err);
+      if (!sessiz) setCeviriMesaji(err instanceof Error ? err.message : String(err));
+      return null;
+    } finally {
+      setCevriliyor(false);
+    }
+  };
+
+  const kategoriFormunuCevir = async (sessiz: boolean) => {
+    setKatCevriliyor(true);
+    try {
+      const c = await ingilizceyeCevir({
+        title: catFormTitle,
+        subtitle: catFormSubtitle,
+        description: catFormDescription
+      });
+      const sonuc = { titleEn: c.title ?? '', subtitleEn: c.subtitle ?? '', descriptionEn: c.description ?? '' };
+      setCatFormTitleEn(sonuc.titleEn);
+      setCatFormSubtitleEn(sonuc.subtitleEn);
+      setCatFormDescriptionEn(sonuc.descriptionEn);
+      return sonuc;
+    } catch (err) {
+      console.warn('[Çeviri]', err);
+      if (!sessiz) setCatError(err instanceof Error ? err.message : String(err));
+      return null;
+    } finally {
+      setKatCevriliyor(false);
+    }
+  };
+
+  // İngilizce başlığı olmayan tüm ürünleri sırayla çevirip kaydeder
+  const eksikCeviriSayisi = products.filter((u) => !u.titleEn?.trim()).length;
+  const eksikCevirileriTamamla = async () => {
+    const eksikler = products.filter((u) => !u.titleEn?.trim());
+    if (eksikler.length === 0) return;
+    const onay = language === 'tr'
+      ? `${eksikler.length} ürünün İngilizce çevirisi oluşturulup kaydedilecek. Devam edilsin mi?`
+      : `English translations will be created and saved for ${eksikler.length} products. Continue?`;
+    if (!confirm(onay)) return;
+
+    setTopluCeviri({ yapilan: 0, toplam: eksikler.length });
+    try {
+      for (let i = 0; i < eksikler.length; i++) {
+        const u = eksikler[i];
+        const c = await ingilizceyeCevir({
+          title: u.title,
+          story: u.story,
+          condition: u.condition,
+          material: u.material,
+          dimensions: u.dimensions
+        });
+        await onUpdateProduct({
+          ...u,
+          titleEn: c.title,
+          storyEn: c.story,
+          conditionEn: c.condition,
+          materialEn: c.material,
+          dimensionsEn: c.dimensions
+        });
+        setTopluCeviri({ yapilan: i + 1, toplam: eksikler.length });
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    } finally {
+      setTopluCeviri(null);
+    }
   };
 
   // Delete product with customized alert
@@ -1033,6 +1186,21 @@ export default function AdminPanel({
 
               {/* Actions Buttons Group */}
               <div className="hidden sm:flex items-center gap-3">
+                {eksikCeviriSayisi > 0 && (
+                  <button
+                    onClick={eksikCevirileriTamamla}
+                    disabled={topluCeviri !== null}
+                    className="py-2.5 px-4 border border-brand-sand hover:border-brand-charcoal text-brand-charcoal text-xs tracking-widest uppercase transition-colors rounded-[2px] flex items-center gap-2 font-medium shrink-0 bg-brand-beige disabled:opacity-60"
+                    title={language === 'tr' ? 'İngilizce çevirisi olmayan ürünleri otomatik çevir' : 'Translate products without English text'}
+                  >
+                    {topluCeviri ? <Loader2 size={13} className="animate-spin" /> : <Languages size={13} />}
+                    <span>
+                      {topluCeviri
+                        ? `${language === 'tr' ? 'ÇEVRİLİYOR' : 'TRANSLATING'} ${topluCeviri.yapilan}/${topluCeviri.toplam}`
+                        : `${language === 'tr' ? 'EN ÇEVİRİSİ EKSİK' : 'MISSING EN'}: ${eksikCeviriSayisi}`}
+                    </span>
+                  </button>
+                )}
                 <button
                   onClick={handleOpenAdd}
                   className="py-2.5 px-4 bg-brand-charcoal hover:bg-brand-charcoal/90 text-brand-beige text-xs tracking-widest uppercase transition-colors rounded-[2px] flex items-center gap-2 font-medium shrink-0 shadow-sm"
@@ -1949,6 +2117,23 @@ export default function AdminPanel({
                   />
                 </div>
 
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <p className="text-[10px] text-brand-warmgray font-light">
+                    {language === 'tr'
+                      ? 'İngilizce alanlar boşsa kaydederken otomatik çevrilir.'
+                      : 'Empty English fields are translated automatically on save.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => kategoriFormunuCevir(false)}
+                    disabled={katCevriliyor || !catFormTitle.trim()}
+                    className="py-1.5 px-3 border border-brand-sand hover:border-brand-charcoal bg-brand-beige text-brand-charcoal text-[10px] tracking-widest uppercase transition-colors rounded-[2px] flex items-center gap-1.5 font-medium disabled:opacity-50"
+                  >
+                    {katCevriliyor ? <Loader2 size={12} className="animate-spin" /> : <Languages size={12} className="text-brand-terracotta" />}
+                    <span>{language === 'tr' ? 'TÜRKÇEDEN ÇEVİR' : 'TRANSLATE FROM TURKISH'}</span>
+                  </button>
+                </div>
+
                 {/* Category Cover Image */}
                 <div>
                   <label className="block text-brand-charcoal/80 font-medium tracking-wide mb-1 uppercase">
@@ -2009,9 +2194,10 @@ export default function AdminPanel({
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-3 bg-brand-charcoal hover:bg-brand-charcoal/90 text-brand-beige text-xs tracking-widest uppercase transition-colors rounded-[2px]"
+                    disabled={katCevriliyor}
+                    className="flex-1 py-3 bg-brand-charcoal hover:bg-brand-charcoal/90 text-brand-beige text-xs tracking-widest uppercase transition-colors rounded-[2px] disabled:opacity-60"
                   >
-                    {editingCategory 
+                    {katCevriliyor ? (language === 'tr' ? 'ÇEVRİLİYOR...' : 'TRANSLATING...') : editingCategory 
                       ? (language === 'tr' ? 'KATEGORİYİ GÜNCELLE' : 'UPDATE CATEGORY') 
                       : (language === 'tr' ? 'KATEGORİYİ YAYINLA' : 'PUBLISH CATEGORY')}
                   </button>
@@ -2494,6 +2680,68 @@ export default function AdminPanel({
                   />
                 </div>
 
+                {/* İngilizce (EN) */}
+                <div className="bg-brand-sand/20 border border-brand-sand/60 p-3 rounded-[2px] space-y-2.5">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <label className="text-brand-charcoal font-semibold tracking-wide uppercase text-[10px] flex items-center gap-1.5">
+                      <Languages size={12} className="text-brand-terracotta" />
+                      <span>{language === 'tr' ? 'İNGİLİZCE (EN)' : 'ENGLISH (EN)'}</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => urunFormunuCevir(false)}
+                      disabled={cevriliyor || !formTitle.trim()}
+                      className="py-1.5 px-3 border border-brand-sand hover:border-brand-charcoal bg-brand-beige text-brand-charcoal text-[10px] tracking-widest uppercase transition-colors rounded-[2px] flex items-center gap-1.5 font-medium disabled:opacity-50"
+                    >
+                      {cevriliyor ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} className="text-brand-terracotta" />}
+                      <span>{language === 'tr' ? 'TÜRKÇEDEN ÇEVİR' : 'TRANSLATE FROM TURKISH'}</span>
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-brand-warmgray font-light leading-relaxed">
+                    {language === 'tr'
+                      ? 'Boş bırakırsanız kaydederken otomatik çevrilir. Çeviriyi düzeltebilirsiniz. İngilizce boş kalırsa sitede Türkçesi gösterilir.'
+                      : 'Left empty, it is translated automatically on save. You can edit it. If empty, the Turkish text is shown.'}
+                  </p>
+                  {ceviriMesaji && <p className="text-[11px] text-brand-terracotta">{ceviriMesaji}</p>}
+                  <input
+                    type="text"
+                    value={formTitleEn}
+                    onChange={(e) => setFormTitleEn(e.target.value)}
+                    placeholder={language === 'tr' ? 'Ürün adı (EN)' : 'Product name (EN)'}
+                    className="w-full bg-brand-beige border border-brand-sand focus:border-brand-charcoal px-3 py-2 rounded-[2px] text-sm text-brand-charcoal outline-none transition-all"
+                  />
+                  <textarea
+                    rows={3}
+                    value={formStoryEn}
+                    onChange={(e) => setFormStoryEn(e.target.value)}
+                    placeholder={language === 'tr' ? 'Hikâye / açıklama (EN)' : 'Story / description (EN)'}
+                    className="w-full bg-brand-beige border border-brand-sand focus:border-brand-charcoal px-3 py-2 rounded-[2px] text-sm text-brand-charcoal outline-none transition-all resize-none"
+                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <input
+                      type="text"
+                      value={formMaterialEn}
+                      onChange={(e) => setFormMaterialEn(e.target.value)}
+                      placeholder={language === 'tr' ? 'Malzeme (EN)' : 'Material (EN)'}
+                      className="w-full bg-brand-beige border border-brand-sand focus:border-brand-charcoal px-3 py-2 rounded-[2px] text-sm text-brand-charcoal outline-none transition-all"
+                    />
+                    <input
+                      type="text"
+                      value={formDimensionsEn}
+                      onChange={(e) => setFormDimensionsEn(e.target.value)}
+                      placeholder={language === 'tr' ? 'Ölçüler (EN)' : 'Dimensions (EN)'}
+                      className="w-full bg-brand-beige border border-brand-sand focus:border-brand-charcoal px-3 py-2 rounded-[2px] text-sm text-brand-charcoal outline-none transition-all"
+                    />
+                    <input
+                      type="text"
+                      value={formConditionEn}
+                      onChange={(e) => setFormConditionEn(e.target.value)}
+                      placeholder={language === 'tr' ? 'Durum (EN)' : 'Condition (EN)'}
+                      className="w-full bg-brand-beige border border-brand-sand focus:border-brand-charcoal px-3 py-2 rounded-[2px] text-sm text-brand-charcoal outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
                 {/* Yayın durumu */}
                 <div>
                   <label className="block text-brand-charcoal/80 font-medium tracking-wide mb-1.5 uppercase">
@@ -2566,9 +2814,10 @@ export default function AdminPanel({
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-3 bg-brand-charcoal hover:bg-brand-charcoal/90 text-brand-beige text-xs tracking-widest uppercase transition-colors rounded-[2px]"
+                    disabled={cevriliyor}
+                    className="flex-1 py-3 bg-brand-charcoal hover:bg-brand-charcoal/90 text-brand-beige text-xs tracking-widest uppercase transition-colors rounded-[2px] disabled:opacity-60"
                   >
-                    {editingProduct 
+                    {cevriliyor ? (language === 'tr' ? 'ÇEVRİLİYOR...' : 'TRANSLATING...') : editingProduct 
                       ? (language === 'tr' ? 'DEĞİŞİKLİKLERİ KAYDET' : 'SAVE CHANGES') 
                       : (language === 'tr' ? 'ÜRÜNÜ YAYINLA' : 'PUBLISH PRODUCT')}
                   </button>
