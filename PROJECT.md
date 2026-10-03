@@ -520,6 +520,9 @@ Bilerek silinmedi; bu bir kaynak/üretim işareti ve silinmesi kullanıcının k
 **Not 3:** teal_peacock_1 için geçmişte iki farklı sürüm vardı; c3c891f sürümü yanlış
 fotoğraf (çerçeveli tablo). Doğrusu ilk committeki kaftan fotoğrafı.
 
+Görsellerin tam envanteri (hangisi temiz, hangisinde yıldız var, hangisi yalnızca lekeli):
+**docs/gorsel-envanteri.md**
+
 Ölçüm aracı kalıcı hale getirildi: `python scripts/kose-bulaniklik-olc.py` (parametresiz
 çalıştırılınca public/images/products altındaki tüm fotoğrafları ölçer).
 
