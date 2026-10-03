@@ -498,6 +498,31 @@ açıldı; yeni giriş ekranında hatalı giriş Türkçe hata verdi.
 boş görünebiliyor (`requestAnimationFrame` 0 kare). Bu bir kod hatası değil; doğrulamalar
 DOM ve ağ üzerinden yapıldı.
 
+### 2026-10-03 — Fotoğraf köşelerindeki buğulanma giderildi
+
+**Şikâyet:** Bazı ürün fotoğraflarının köşelerinde buğulanma/leke var.
+
+**Teşhis:** Sitede görsellere uygulanan bir CSS efekti YOK (yalnızca hafif doygunluk ve
+vitrin kartlarında alt gradyan). Buğu dosyaların içine işlenmiş. Geçmişte (bu çalışmadan önce)
+fotoğrafların sağ alt köşesindeki yapay zekâ aracı filigranını (küçük yıldız) silmek için
+o bölgeye bulanıklık/doldurma uygulanmış. Sonuç, filigrandan çok daha göze batan ~160×160
+piksellik bir leke olmuş. Ölçüm: her dosyada değişen bölge aynı yerde, sağ alt köşede.
+
+**Yapılan:** 8 statik fotoğraf (green_kaftan_1-4, black_peacock_1-2, teal_peacock_1-2)
+ilk committeki (f1fc7b7) lekesiz hâlleriyle geri yüklendi. Sağ alt köşe keskinliği geri geldi
+(ör. black_peacock_2 köşe/merkez oranı 0.02 → 3.52).
+
+**Not 1:** Geri yüklenen dosyalarda aracın küçük yıldız işareti yine görünür durumda.
+Bilerek silinmedi; bu bir kaynak/üretim işareti ve silinmesi kullanıcının kararı.
+**Not 2:** Panelden yüklenen (Storage) fotoğraflarda da aynı leke var — özellikle
+"Ev Renovasyon" ürününün fotoğrafları. Bunların lekesiz kopyası depoda/geçmişte yok;
+çözüm, yeni panelden (artık hiçbir efekt uygulamıyor) yeniden yüklemek.
+**Not 3:** teal_peacock_1 için geçmişte iki farklı sürüm vardı; c3c891f sürümü yanlış
+fotoğraf (çerçeveli tablo). Doğrusu ilk committeki kaftan fotoğrafı.
+
+Ölçüm aracı kalıcı hale getirildi: `python scripts/kose-bulaniklik-olc.py` (parametresiz
+çalıştırılınca public/images/products altındaki tüm fotoğrafları ölçer).
+
 ---
 
 ## 9. Alınan kararlar
@@ -523,6 +548,7 @@ DOM ve ağ üzerinden yapıldı.
 | 2026-09-16 | Depodan API ile dosya silinemez | Silinen ürün çöp kutusundan geri geldiğinde fotoğrafı da yerinde olsun |
 | 2026-09-16 | Çeviri yalnızca yönetici oturumuyla çağrılabilir | Herkese açık uç noktada başkaları OpenRouter kredisini harcayabilirdi |
 | 2026-09-16 | Yönetici listesi ve çeviri sözlüğü shared/ klasöründe tek kaynak | Tarayıcı ve sunucu aynı listeyi kullansın |
+| 2026-10-03 | Filigran silme amaçlı bulanıklaştırma yapılmayacak | Lekesi filigrandan daha kötü; işaretin kalıp kalmayacağı kullanıcının kararı |
 
 ---
 
