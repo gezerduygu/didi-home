@@ -69,4 +69,5 @@ node scripts/run-sql.mjs sql/DOSYA.sql
 ## 6. Mevcut Durum (Son Commitler Özeti)
 - Aşama 0–6 arası temel altyapı tamamlandı: veri modeli geçişi, Supabase Auth yönetici girişi, çöp kutusu, fotoğrafların Supabase Storage'a taşınması, WhatsApp + DB sipariş akışı, Admin Siparişler sekmesi, OpenRouter otomatik EN çeviri, SEO/sitemap ve `keepalive` cron.
 - Son çalışmalarda statik ürün görsellerindeki köşe buğulanması giderildi, görsel oranları 3:4 standardına hizalandı ve [`docs/gorsel-envanteri.md`](./docs/gorsel-envanteri.md) oluşturuldu.
+- **2026-11-16:** Drive'dan gelen 55 yeni fotoğraf yerleştirildi (6 ürün yenilendi, 23 yeni ürün, 2 vitrin). Site **portfolyo modunda**: `src/ozellikler.ts` → `SIPARIS_AKTIF = false` iken sepet, sipariş ve fiyatlar gizlidir; yeni ürünlerin fiyatı 0'dır.
 - **Dikkat:** `PROJECT.md` Bölüm 11'de yayın sonrası ve kullanıcı tarafından tamamlanması gereken kontrol listesi maddeleri yer almaktadır; yeni bir işe başlamadan önce bunların durumunu kullanıcıyla teyit et.

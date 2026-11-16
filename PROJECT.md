@@ -526,6 +526,35 @@ Görsellerin tam envanteri (hangisi temiz, hangisinde yıldız var, hangisi yaln
 Ölçüm aracı kalıcı hale getirildi: `python scripts/kose-bulaniklik-olc.py` (parametresiz
 çalıştırılınca public/images/products altındaki tüm fotoğrafları ölçer).
 
+### 2026-11-16 — Yeni fotoğraflar yerleştirildi, site portfolyo moduna alındı
+
+**İstek:** Paylaşılan Drive klasöründeki ("Didi Home": Ana Sayfa Foto, Sabahlık Fotolar, Seramik,
+Ev, Kilim) yeni fotoğrafların siteye yerleştirilmesi; aynı ürünün eskisi varsa yenisiyle
+değiştirilmesi; sipariş/alışveriş kısmının şimdilik görünmez olması.
+
+**Görseller** (`scripts/yeni-gorseller-2026-11.mjs`, önce yedek: `backups/yeni-gorseller-oncesi-2026-11-16-11-53.json`):
+- 110 dosya incelendi, 55 görsel seçildi. Panelin yaptığı gibi en fazla 1200×1600'e küçültüldü
+  (JPEG 86); oranı 3:4'e çok yakın olanlar birkaç pikselle tam 3:4'e kırpıldı. Hiçbir efekt yok.
+  Sağ alt köşeler tek tek kontrol edildi: filigran ya da leke yok.
+- Storage'a yüklendi (`gorseller/urunler/2026-11/`, `gorseller/vitrin/2026-11/`), her dosya
+  adresinden indirilip birebir doğrulandı. Geçici yükleme kuralı betik sonunda kaldırıldı.
+- **Vitrin:** Haute Couture ve Ev kategorilerinin kapağı değişti (Seramik kapağı aynı kaldı).
+- **Görselleri değişen 6 ürün:** Sarı İşlemeli Kaftan, Zümrüt Yeşili Nakışlı Kaftan, Siyah
+  Tavuskuşlu Nakışlı Kaftan, Petrol Yeşili Tavuskuşu Sabahlık, Mor Çiçek İşlemeli Kimono,
+  Ev Renovasyon. Böylece envanterdeki lekeli ve yıldızlı fotoğrafların hepsi siteden kalktı.
+- **23 yeni ürün:** 3 kıyafet (Hardal Sarısı İşlemeli Kaban, Siyah Kare İşlemeli Kaftan,
+  Şal Desenli Kaftan), 1 kilim, 19 seramik. Başlık ve hikâyeler fotoğraflara bakılarak yazıldı;
+  **fiyatları 0** (sitede fiyat gösterilmiyor), ölçü/malzeme ayrıntıları ve İngilizce çevirileri
+  boş. Yönetici panelden düzeltebilir.
+- Kullanılmayanlar: "orjinal eski", "Orjinal JPG", "orjinal", "Behram" klasörlerindeki ham
+  fotoğraflar ve video.
+- Eski dosyalar silinmedi (depodan silme zaten kapalı; `public/images/products` altındakiler
+  artık kullanılmıyor ama duruyor). Eski değerler `revisions` tablosunda.
+
+**Portfolyo modu:** `src/ozellikler.ts` → `SIPARIS_AKTIF = false`. Sepet düğmesi, "Sepete Ekle",
+kargo notu, sepet çekmecesi, fiyatlar ve fiyata göre sıralama gizlendi. Kod silinmedi; değer
+`true` yapılınca hepsi geri gelir. **Yeniden açmadan önce yeni ürünlere fiyat girilmeli.**
+
 ---
 
 ## 9. Alınan kararlar
@@ -552,6 +581,7 @@ Görsellerin tam envanteri (hangisi temiz, hangisinde yıldız var, hangisi yaln
 | 2026-09-16 | Çeviri yalnızca yönetici oturumuyla çağrılabilir | Herkese açık uç noktada başkaları OpenRouter kredisini harcayabilirdi |
 | 2026-09-16 | Yönetici listesi ve çeviri sözlüğü shared/ klasöründe tek kaynak | Tarayıcı ve sunucu aynı listeyi kullansın |
 | 2026-10-03 | Filigran silme amaçlı bulanıklaştırma yapılmayacak | Lekesi filigrandan daha kötü; işaretin kalıp kalmayacağı kullanıcının kararı |
+| 2026-11-16 | Site şimdilik portfolyo: sipariş ve fiyat gizli (`SIPARIS_AKTIF`) | Kullanıcı kararı; alışveriş sonra eklenecek. Altyapı silinmedi, tek değerle geri açılır |
 
 ---
 

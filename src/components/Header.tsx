@@ -3,6 +3,7 @@ import { ShoppingBag, BookOpen, Plus, Sparkles } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 import { CategoryItem } from '../types';
+import { SIPARIS_AKTIF } from '../ozellikler';
 
 interface HeaderProps {
   cartCount: number;
@@ -101,7 +102,7 @@ export default function Header({
             </button>
           </div>
 
-          <button
+          {SIPARIS_AKTIF && <button
             id="nav-cart-btn"
             onClick={onOpenCart}
             className="group relative p-1.5 sm:p-2 flex items-center gap-1.5 sm:gap-2 text-brand-charcoal/80 hover:text-brand-charcoal transition-colors duration-200"
@@ -114,7 +115,7 @@ export default function Header({
                 {cartCount}
               </span>
             )}
-          </button>
+          </button>}
         </div>
       </div>
     </header>

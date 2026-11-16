@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, Tag } from 'lucide-react';
 import { Product, Category, CategoryItem } from '../types';
 import { useLanguage } from '../context/LanguageContext';
+import { SIPARIS_AKTIF } from '../ozellikler';
 
 interface ProductGridProps {
   products: Product[];
@@ -201,8 +202,8 @@ export default function ProductGrid({
             className="bg-transparent border-b border-brand-warmgray/40 focus:border-brand-charcoal outline-none py-1 pr-4 cursor-pointer text-brand-charcoal font-medium"
           >
             <option value="default">{t('grid.sort.default')}</option>
-            <option value="price-asc">{t('grid.sort.price_asc')}</option>
-            <option value="price-desc">{t('grid.sort.price_desc')}</option>
+            {SIPARIS_AKTIF && <option value="price-asc">{t('grid.sort.price_asc')}</option>}
+            {SIPARIS_AKTIF && <option value="price-desc">{t('grid.sort.price_desc')}</option>}
             <option value="newest">{t('grid.sort.newest')}</option>
           </select>
         </div>
@@ -320,9 +321,11 @@ export default function ProductGrid({
                     {product.title}
                   </h3>
                   <div className="w-4 h-[1px] bg-brand-warmgray/20 my-1.5 group-hover:w-8 group-hover:bg-brand-terracotta/40 transition-all duration-300" />
-                  <span className="text-sm font-sans font-medium text-brand-charcoal tracking-wide">
-                    {product.price.toLocaleString(language === 'tr' ? 'tr-TR' : 'en-US')} {t('cart.currency')}
-                  </span>
+                  {SIPARIS_AKTIF && (
+                    <span className="text-sm font-sans font-medium text-brand-charcoal tracking-wide">
+                      {product.price.toLocaleString(language === 'tr' ? 'tr-TR' : 'en-US')} {t('cart.currency')}
+                    </span>
+                  )}
                 </div>
               </motion.div>
             ))}

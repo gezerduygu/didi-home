@@ -4,6 +4,7 @@ import { X, ShoppingBag, Check, ShieldCheck, Sparkles } from 'lucide-react';
 import { Product } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useModalBehavior } from '../hooks/useModalBehavior';
+import { SIPARIS_AKTIF } from '../ozellikler';
 
 /** Parmakla kaydırmanın "fotoğraf değiştir" sayılması için gereken en az mesafe (px). */
 const KAYDIRMA_ESIGI = 45;
@@ -212,10 +213,14 @@ export default function ProductDetailModal({
                   {translatedProduct.title}
                 </h2>
 
-                {/* Price */}
-                <p className="text-lg font-medium text-brand-charcoal tracking-wide mb-3">
-                  {translatedProduct.price.toLocaleString(language === 'tr' ? 'tr-TR' : 'en-US')} {t('cart.currency')}
-                </p>
+                {/* Price — sipariş kapalıyken gizlenir (src/ozellikler.ts) */}
+                {SIPARIS_AKTIF ? (
+                  <p className="text-lg font-medium text-brand-charcoal tracking-wide mb-3">
+                    {translatedProduct.price.toLocaleString(language === 'tr' ? 'tr-TR' : 'en-US')} {t('cart.currency')}
+                  </p>
+                ) : (
+                  <div className="mb-3" />
+                )}
 
                 {/* Hand-selected/Wabi-Sabi philosophical banner */}
                 <div className="flex gap-2 p-2.5 bg-brand-sand/25 rounded-[2px] border border-brand-sand/40 text-[11px] text-brand-warmgray/90 mb-3.5 leading-relaxed">
@@ -270,8 +275,8 @@ export default function ProductDetailModal({
                 </div>
               </div>
 
-              {/* Action: Add to Cart */}
-              <div className="mt-auto pt-2">
+              {/* Action: Add to Cart — sipariş kapalıyken gizlenir (src/ozellikler.ts) */}
+              {SIPARIS_AKTIF && <div className="mt-auto pt-2">
                 <button
                   id="btn-add-to-cart"
                   onClick={handleAddToCart}
@@ -301,7 +306,7 @@ export default function ProductDetailModal({
                     ? '3.000 TL ve üzeri siparişlerde ücretsiz kargo · 3 iş gününde kargoya teslim'
                     : 'Free shipping on orders over 3,000 TL · Dispatched within 3 business days'}
                 </p>
-              </div>
+              </div>}
 
             </div>
           </div>

@@ -29,6 +29,7 @@ import {
 } from './store';
 import { Product, CartItem, Category, CategoryItem } from './types';
 import { useLanguage } from './context/LanguageContext';
+import { SIPARIS_AKTIF } from './ozellikler';
 
 interface HistoryState {
   category: Category | null;
@@ -767,7 +768,7 @@ export default function App() {
 
       {/* 2. Shopping Cart Drawer */}
       <AnimatePresence>
-        {isCartOpen && (
+        {SIPARIS_AKTIF && isCartOpen && (
           <CartDrawer
             isOpen={isCartOpen}
             onClose={handleCloseCart}
