@@ -210,7 +210,7 @@ değiştirdikten sonra `node scripts/run-sql.mjs sql/02_security.sql`).
 - [x] **Aşama 4 — Sipariş akışı (WhatsApp + kayıt + panelde Siparişler)**
 - [x] **Aşama 5 — Otomatik İngilizce çeviri** — altyapı hazır; OpenRouter anahtarı eklenince etkinleşir
 - [x] **Aşama 6 — Hız, SEO, Supabase uyku önleyici, kod temizliği**
-- [ ] **Yayın** — bkz. Bölüm 11
+- [x] **Yayın** — 2026-11-16'da yapıldı; kullanıcının yapacakları için bkz. Bölüm 11
 
 ### Gelecekte değerlendirilebilecekler
 
@@ -606,11 +606,14 @@ kargo notu, sepet çekmecesi, fiyatlar ve fiyata göre sıralama gizlendi. Kod s
 Yayın, GitHub'daki `main` dalına gönderilen commit'lerle Vercel tarafından otomatik yapılır.
 
 **Yayından hemen sonra**
-- [ ] didihome.store açılıyor, 3 kategori ve ürünler görünüyor
-- [ ] `/api/keepalive` → `{"tamam":true}`
-- [ ] `/sitemap.xml` açılıyor
-- [ ] Canlıdaki kod yeni sürüm (eski `store_data`'yı artık okumuyor)
-- [ ] `node scripts/run-sql.mjs sql/03_archive_store_data.sql` → eski tablonun geçici okuma izni kaldırılır
+Yayın 2026-11-16'da yapıldı (commit `d73f0e2`).
+
+- [x] didihome.store açılıyor (HTTP 200); herkese açık API 30 ürün döndürüyor
+- [x] `/api/keepalive` → `{"tamam":true}`
+- [x] `/sitemap.xml` açılıyor (34 adres)
+- [x] Canlıdaki kod yeni sürüm (canlı pakette `store_data` geçmiyor)
+- [x] `node scripts/run-sql.mjs sql/03_archive_store_data.sql` → geçici okuma izni kaldırıldı;
+      tablo silinmedi (3 satır arşivde), API ile okunamıyor
 
 **Kullanıcının yapacakları**
 - [ ] Supabase → Authentication → URL Configuration: Site URL `https://didihome.store`,
