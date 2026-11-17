@@ -77,7 +77,6 @@ const COVER_PRESETS: Record<string, { url: string; label: string }[]> = {
   ],
   seramik: [
     { url: '/images/ceramic-cover.jpg', label: 'Wabi Ham Vazo (Varsayılan)' },
-    { url: '/images/products/prod_img_15.jpg', label: 'Şamot Kum Vazo' },
     { url: '/images/products/prod_img_2.jpg', label: 'Terracotta Çay Seti' },
     { url: '/images/products/prod_img_8.jpg', label: 'Organik Meyvelik' },
     { url: '/images/products/prod_img_14.jpg', label: 'Sır Altı Buhurdanlık' }
