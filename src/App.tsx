@@ -824,8 +824,17 @@ export default function App() {
               </button>
             ))}
           </div>
-          <div className="text-[10px] text-brand-warmgray/60 italic">
-            {t('footer.motto')}
+          <div className="flex flex-col items-center md:items-end gap-2">
+            <div className="text-[10px] text-brand-warmgray/60 italic">
+              {t('footer.motto')}
+            </div>
+            <a
+              id="footer-admin"
+              href="/admin"
+              className="text-[10px] hover:text-brand-charcoal transition-colors"
+            >
+              {language === 'en' ? 'Admin Panel' : 'Yönetici Paneli'}
+            </a>
           </div>
         </div>
       </footer>
