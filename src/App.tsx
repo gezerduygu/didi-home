@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, ArrowRight, Heart } from 'lucide-react';
 
@@ -8,25 +8,7 @@ import ProductGrid from './components/ProductGrid';
 import ProductDetailModal from './components/ProductDetailModal';
 import CartDrawer from './components/CartDrawer';
 import AboutModal from './components/AboutModal';
-// Yönetim paneli ayrı bir dosya olarak yalnızca /admin açılınca indirilir;
-// ziyaretçiler panel kodunu hiç indirmez.
-const AdminPanel = lazy(() => import('./components/AdminPanel'));
-
-import type { Session } from '@supabase/supabase-js';
-import { supabase } from './supabase';
-import { yoneticiMi } from './auth';
-import {
-  StoreError,
-  listVisibleProducts,
-  listAllProducts,
-  listCategories,
-  saveProduct,
-  softDeleteProduct,
-  restoreProduct,
-  saveProductOrder,
-  saveCategory,
-  softDeleteCategory
-} from './store';
+import { listVisibleProducts, listCategories } from './store';
 import { Product, CartItem, Category, CategoryItem } from './types';
 import { useLanguage } from './context/LanguageContext';
 import { SIPARIS_AKTIF } from './ozellikler';
@@ -36,11 +18,10 @@ interface HistoryState {
   productId: string | null;
   isCartOpen: boolean;
   isAboutOpen: boolean;
-  isAdminOpen: boolean;
   /**
    * Bu geçmiş kaydını site İÇİNDEN biz mi ekledik?
-   * Doğrudan bağlantıyla gelinen sayfalarda (Instagram'da paylaşılan ürün linki,
-   * adres çubuğuna yazılan /admin) "geri" gitmek ziyaretçiyi siteden çıkarır.
+   * Doğrudan bağlantıyla gelinen sayfalarda (Instagram'da paylaşılan ürün linki)
+   * "geri" gitmek ziyaretçiyi siteden çıkarır.
    * Pencereler yalnızca bu bayrak doluysa history.back() ile kapatılır.
    */
   pushed?: boolean;
@@ -70,21 +51,11 @@ const onbellegeYaz = (anahtar: string, deger: unknown) => {
 
 const parseUrlState = (): HistoryState => {
   if (typeof window === 'undefined') {
-    return { category: null, productId: null, isCartOpen: false, isAboutOpen: false, isAdminOpen: false };
+    return { category: null, productId: null, isCartOpen: false, isAboutOpen: false };
   }
   const path = window.location.pathname.toLowerCase().replace(/\/$/, '');
   const searchParams = new URLSearchParams(window.location.search);
   const paramProduct = searchParams.get('product');
-
-  if (path === '/admin') {
-    return {
-      category: null,
-      productId: null,
-      isCartOpen: false,
-      isAboutOpen: false,
-      isAdminOpen: true
-    };
-  }
 
   let cat: Category | null = null;
   if (path.startsWith('/category/')) {
@@ -95,8 +66,7 @@ const parseUrlState = (): HistoryState => {
     category: cat,
     productId: paramProduct || null,
     isCartOpen: false,
-    isAboutOpen: false,
-    isAdminOpen: false
+    isAboutOpen: false
   };
 };
 
@@ -114,17 +84,11 @@ export default function App() {
   // Modal / Drawer control states
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(() => parseUrlState().isAdminOpen);
   const [notification, setNotification] = useState<string | null>(null);
 
   // Veri yükleme durumu
   const [yukleniyor, setYukleniyor] = useState(true);
   const [yuklemeHatasi, setYuklemeHatasi] = useState<string | null>(null);
-
-  // Yönetici oturumu (Supabase Auth)
-  const [oturum, setOturum] = useState<Session | null>(null);
-  const [sifreYenilemeModu, setSifreYenilemeModu] = useState(false);
-  const isAdmin = yoneticiMi(oturum);
 
   // Initialize products & categories & covers & cart & history state on load
   useEffect(() => {
@@ -140,10 +104,12 @@ export default function App() {
 
     const initial = parseUrlState();
     setActiveCategory(initial.category);
-    setIsAdminOpen(initial.isAdminOpen);
+
+    // Yönetim paneli kaldırıldı (2026-11-25): eski /admin bağlantısı ana sayfaya düşer
+    const eskiPanelAdresi = window.location.pathname.toLowerCase().replace(/\/$/, '') === '/admin';
 
     // Set initial replaceState so the current history entry has a full state object
-    const currentUrl = window.location.pathname + window.location.search;
+    const currentUrl = eskiPanelAdresi ? '/' : window.location.pathname + window.location.search;
     window.history.replaceState(initial, '', currentUrl);
 
     const storedCart = localStorage.getItem('didi_home_cart');
@@ -156,26 +122,12 @@ export default function App() {
     }
   }, []);
 
-  // --- Yönetici oturumu ---
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setOturum(data.session));
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange((olay, session) => {
-      setOturum(session);
-      // E-postadaki "şifre belirle" bağlantısıyla gelindi
-      if (olay === 'PASSWORD_RECOVERY') setSifreYenilemeModu(true);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
   // --- Veri yükleme ---
-  // Yönetici girişi yapılınca taslaklar dahil tüm ürünler yeniden yüklenir.
   // Veri gelmezse örnek katalog GÖSTERİLMEZ; hata mesajı gösterilir (Altın kural 4).
   const veriyiYukle = useCallback(async () => {
     try {
       const [urunler, kategoriler] = await Promise.all([
-        isAdmin ? listAllProducts() : listVisibleProducts(),
+        listVisibleProducts(),
         listCategories()
       ]);
       setProducts(urunler);
@@ -196,7 +148,7 @@ export default function App() {
     } finally {
       setYukleniyor(false);
     }
-  }, [isAdmin]);
+  }, []);
 
   useEffect(() => {
     veriyiYukle();
@@ -210,7 +162,6 @@ export default function App() {
       // geri tuşuna basan ziyaretçiye örnek (sahte) ürünler gösteriliyordu.
       const state: HistoryState = event.state || parseUrlState();
 
-      setIsAdminOpen(Boolean(state.isAdminOpen));
       setIsCartOpen(Boolean(state.isCartOpen));
       setIsAboutOpen(Boolean(state.isAboutOpen));
       setActiveCategory(state.category || null);
@@ -229,15 +180,14 @@ export default function App() {
 
   // Step-by-step History Navigation Handlers
   const handleSelectCategory = (catId: Category | null) => {
-    if (catId === activeCategory && !selectedProduct && !isCartOpen && !isAboutOpen && !isAdminOpen) return;
+    if (catId === activeCategory && !selectedProduct && !isCartOpen && !isAboutOpen) return;
 
     const url = catId ? `/category/${catId}` : '/';
     const newState: HistoryState = {
       category: catId,
       productId: null,
       isCartOpen: false,
-      isAboutOpen: false,
-      isAdminOpen: false
+      isAboutOpen: false
     };
 
     window.history.pushState(newState, '', url);
@@ -245,7 +195,6 @@ export default function App() {
     setSelectedProduct(null);
     setIsCartOpen(false);
     setIsAboutOpen(false);
-    setIsAdminOpen(false);
   };
 
   const handleSelectProduct = (product: Product) => {
@@ -255,7 +204,6 @@ export default function App() {
       productId: product.id,
       isCartOpen: false,
       isAboutOpen: false,
-      isAdminOpen: false,
       pushed: true
     };
 
@@ -272,8 +220,7 @@ export default function App() {
         category: activeCategory,
         productId: null,
         isCartOpen: false,
-        isAboutOpen: false,
-        isAdminOpen: false
+        isAboutOpen: false
       };
       window.history.replaceState(newState, '', url);
       setSelectedProduct(null);
@@ -286,7 +233,6 @@ export default function App() {
       productId: selectedProduct?.id || null,
       isCartOpen: true,
       isAboutOpen: false,
-      isAdminOpen: false,
       pushed: true
     };
     window.history.pushState(newState, '');
@@ -307,7 +253,6 @@ export default function App() {
       productId: selectedProduct?.id || null,
       isCartOpen: false,
       isAboutOpen: true,
-      isAdminOpen: false,
       pushed: true
     };
     window.history.pushState(newState, '');
@@ -319,23 +264,6 @@ export default function App() {
       window.history.back();
     } else {
       setIsAboutOpen(false);
-    }
-  };
-
-  const handleCloseAdmin = () => {
-    // Panelde yapılan değişiklikler zaten bellekteki listede; yeniden okumaya gerek yok.
-    if (window.history.state?.isAdminOpen && window.history.state?.pushed) {
-      window.history.back();
-    } else {
-      const newState: HistoryState = {
-        category: null,
-        productId: null,
-        isCartOpen: false,
-        isAboutOpen: false,
-        isAdminOpen: false
-      };
-      window.history.pushState(newState, '', '/');
-      setIsAdminOpen(false);
     }
   };
 
@@ -354,9 +282,7 @@ export default function App() {
     }
     const varsayilanAciklama = aciklamaEtiketi?.getAttribute('data-varsayilan') || '';
 
-    if (isAdminOpen) {
-      document.title = 'Yönetim Paneli · Didi Home';
-    } else if (selectedProduct) {
+    if (selectedProduct) {
       const baslik = language === 'en' && selectedProduct.titleEn ? selectedProduct.titleEn : selectedProduct.title;
       document.title = `${baslik} · Didi Home`;
       const hikaye = (language === 'en' && selectedProduct.storyEn) || selectedProduct.story || '';
@@ -370,7 +296,7 @@ export default function App() {
       document.title = varsayilanBaslik;
       aciklamaEtiketi?.setAttribute('content', varsayilanAciklama);
     }
-  }, [isAdminOpen, selectedProduct, activeCategory, categories, language]);
+  }, [selectedProduct, activeCategory, categories, language]);
 
   // Scroll to top on category change (fixes scrolled home page issue)
   useEffect(() => {
@@ -392,117 +318,6 @@ export default function App() {
   };
 
   // --- ACTIONS ---
-
-  // --- KAYIT YARDIMCISI ---
-  // Tüm yazma işlemleri buradan geçer ve veritabanının yanıtı BEKLENİR.
-  // Başarı mesajı yalnızca kayıt gerçekten tamamlanınca gösterilir (Altın kural 7).
-  // Hata olursa ekrandaki liste değişmez.
-  const kaydet = async (islem: () => Promise<void>, basariMesaji: string): Promise<boolean> => {
-    try {
-      await islem();
-      triggerNotification(basariMesaji);
-      return true;
-    } catch (err) {
-      console.error('[Kayıt] İşlem tamamlanamadı:', err);
-      const ayrinti = err instanceof StoreError ? err.message : '';
-      triggerNotification(
-        language === 'tr'
-          ? `Kaydedilemedi, değişikliğiniz uygulanmadı. ${ayrinti}`
-          : `Could not save; your change was not applied. ${ayrinti}`
-      );
-      return false;
-    }
-  };
-
-  const urunKayitMesaji = (u: Product) =>
-    language === 'tr'
-      ? u.status === 'taslak'
-        ? `"${u.title}" taslak olarak kaydedildi (sitede görünmez).`
-        : `"${u.title}" kaydedildi ve yayında.`
-      : u.status === 'taslak'
-        ? `"${u.title}" saved as draft (hidden from the store).`
-        : `"${u.title}" saved and published.`;
-
-  // Add Product (Admin) — yeni ürün listenin en başına gelir
-  const handleAddProduct = (newProduct: Product) =>
-    kaydet(async () => {
-      const enUst = products.reduce((min, u) => Math.min(min, u.sortOrder ?? 0), 0);
-      const kayitli = await saveProduct({ ...newProduct, sortOrder: enUst - 1 });
-      setProducts((onceki) => [kayitli, ...onceki]);
-    }, urunKayitMesaji(newProduct));
-
-  // Update Product (Admin) — yalnızca bu ürünün satırı yazılır
-  const handleUpdateProduct = (updatedProduct: Product) =>
-    kaydet(async () => {
-      const kayitli = await saveProduct(updatedProduct);
-      setProducts((onceki) => onceki.map((u) => (u.id === kayitli.id ? kayitli : u)));
-    }, urunKayitMesaji(updatedProduct));
-
-  // Reorder Products (Admin) — ekranda anında değişir, kayıt başarısız olursa geri alınır
-  const handleReorderProducts = (reorderedProducts: Product[]) => {
-    const oncekiSira = products;
-    const yeniSira = reorderedProducts.map((u, i) => ({ ...u, sortOrder: i }));
-    setProducts(yeniSira);
-    kaydet(
-      () => saveProductOrder(yeniSira.map((u) => u.id)),
-      language === 'tr' ? 'Sıralama kaydedildi.' : 'Order saved.'
-    ).then((basarili) => {
-      if (!basarili) setProducts(oncekiSira);
-    });
-  };
-
-  // Delete Product (Admin) — kalıcı silmez, çöp kutusuna taşır
-  const handleDeleteProduct = (id: string) => {
-    const hedef = products.find((u) => u.id === id);
-    return kaydet(async () => {
-      await softDeleteProduct(id);
-      setProducts((onceki) => onceki.filter((u) => u.id !== id));
-    }, language === 'tr'
-      ? `"${hedef?.title || id}" çöp kutusuna taşındı. Çöp Kutusu sekmesinden geri getirebilirsiniz.`
-      : `"${hedef?.title || id}" moved to trash. You can restore it from the Trash tab.`);
-  };
-
-  // Restore Product (Admin)
-  const handleRestoreProduct = (urun: Product) =>
-    kaydet(async () => {
-      await restoreProduct(urun.id);
-      setProducts((onceki) =>
-        [...onceki.filter((u) => u.id !== urun.id), { ...urun, deletedAt: null }].sort(
-          (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
-        )
-      );
-    }, language === 'tr' ? `"${urun.title}" geri getirildi.` : `"${urun.title}" restored.`);
-
-  // Add New Category (Admin)
-  const handleAddCategory = (newCat: CategoryItem) =>
-    kaydet(async () => {
-      const kayitli = await saveCategory(newCat, categories.length);
-      setCategories((onceki) => [...onceki, kayitli]);
-    }, language === 'tr'
-      ? `"${newCat.title}" kategorisi oluşturuldu.`
-      : `Category "${newCat.title}" created.`);
-
-  // Update Category (Admin)
-  const handleUpdateCategory = (updatedCat: CategoryItem) =>
-    kaydet(async () => {
-      const sira = Math.max(0, categories.findIndex((c) => c.id === updatedCat.id));
-      const kayitli = await saveCategory(updatedCat, sira);
-      setCategories((onceki) => onceki.map((c) => (c.id === kayitli.id ? kayitli : c)));
-    }, language === 'tr'
-      ? `"${updatedCat.title}" kategorisi güncellendi.`
-      : `Category "${updatedCat.title}" updated.`);
-
-  // Delete Category (Admin) — içinde ürün varsa veri katmanı engeller
-  const handleDeleteCategory = (catId: string) => {
-    const hedef = categories.find((c) => c.id === catId);
-    return kaydet(async () => {
-      await softDeleteCategory(catId);
-      setCategories((onceki) => onceki.filter((c) => c.id !== catId));
-    }, language === 'tr'
-      ? `"${hedef?.title || catId}" kategorisi silindi.`
-      : `Category "${hedef?.title || catId}" deleted.`);
-  };
-
 
   // Add product to cart
   const handleAddToCart = (product: Product) => {
@@ -548,7 +363,6 @@ export default function App() {
   };
 
   // Mağazada gösterilecek ürünler: taslaklar ve çöp kutusundakiler hariç.
-  // (Yönetici girişi açıkken products listesi taslakları da içerir.)
   const vitrinUrunleri = products.filter((u) => !u.deletedAt && u.status !== 'taslak');
 
   // Count items per category
@@ -581,55 +395,6 @@ export default function App() {
     if (!kategori) return kategoriId;
     return language === 'en' && kategori.titleEn ? kategori.titleEn : kategori.title;
   };
-
-  if (isAdminOpen) {
-    return (
-      <div className="min-h-screen bg-brand-beige text-brand-charcoal flex flex-col justify-between selection:bg-brand-sand selection:text-brand-charcoal relative">
-        {/* Dynamic Success Notification */}
-        <AnimatePresence>
-          {notification && (
-            <motion.div
-              id="toast-notification"
-              className="fixed bottom-6 right-6 z-50 bg-brand-charcoal text-brand-beige border border-brand-sand/50 shadow-2xl px-5 py-4 rounded-[2px] flex items-center gap-3 text-xs font-sans tracking-wide max-w-sm"
-              initial={{ opacity: 0, y: 30, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              transition={{ duration: 0.4 }}
-            >
-              <Sparkles size={14} className="text-brand-terracotta shrink-0 animate-pulse" />
-              <span>{notification}</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <Suspense
-          fallback={
-            <div className="min-h-[85vh] flex items-center justify-center">
-              <div className="w-6 h-6 border-2 border-brand-sand border-t-brand-terracotta rounded-full animate-spin" />
-            </div>
-          }
-        >
-        <AdminPanel
-          products={products}
-          categories={categories}
-          onAddProduct={handleAddProduct}
-          onUpdateProduct={handleUpdateProduct}
-          onDeleteProduct={handleDeleteProduct}
-          onReorderProducts={handleReorderProducts}
-          onRestoreProduct={handleRestoreProduct}
-          isAdmin={isAdmin}
-          oturumEposta={oturum?.user?.email ?? null}
-          sifreYenilemeModu={sifreYenilemeModu}
-          onSifreYenilendi={() => setSifreYenilemeModu(false)}
-          onAddCategory={handleAddCategory}
-          onUpdateCategory={handleUpdateCategory}
-          onDeleteCategory={handleDeleteCategory}
-          onClose={handleCloseAdmin}
-        />
-        </Suspense>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-brand-beige text-brand-charcoal flex flex-col justify-between selection:bg-brand-sand selection:text-brand-charcoal relative">
@@ -824,17 +589,8 @@ export default function App() {
               </button>
             ))}
           </div>
-          <div className="flex flex-col items-center md:items-end gap-2">
-            <div className="text-[10px] text-brand-warmgray/60 italic">
-              {t('footer.motto')}
-            </div>
-            <a
-              id="footer-admin"
-              href="/admin"
-              className="text-[10px] hover:text-brand-charcoal transition-colors"
-            >
-              {language === 'en' ? 'Admin Panel' : 'Yönetici Paneli'}
-            </a>
+          <div className="text-[10px] text-brand-warmgray/60 italic">
+            {t('footer.motto')}
           </div>
         </div>
       </footer>

@@ -15,10 +15,12 @@ sergilendiği bir vitrin + sipariş sitesidir. Ürünler tek parça ya da limitl
 her ürünün bir "hikâyesi" vardır. Marka dili sade, sıcak ve doğal tonludur
 (bej / kum / terracotta, wabi-sabi estetiği).
 
-**Siteyi kim yönetiyor?** Teknik bilgisi olmayan bir kullanıcı, tarayıcıdan `/admin`
-paneline girerek ürün, kategori ve kapak fotoğraflarını kendisi yönetir.
-Bu yüzden panelin sade, affedici ve veri kaybına karşı korumalı olması
-teknik zarafetten daha önemlidir.
+**Siteyi kim yönetiyor?** 2026-11-25'ten itibaren **tarayıcıdan yönetim paneli yoktur.**
+Ürün, kategori, fotoğraf ve metin değişiklikleri site sahibinin isteğiyle yapay zekâ
+asistanı (Antigravity / Claude Code) tarafından yerelden yapılır: veritabanına
+`scripts/` + `SUPABASE_DB_URL` ile, fotoğraflar Supabase Storage'a betikle yüklenir.
+Nasıl yapılacağı: **Bölüm 12**. Site sahibi teknik bilgiye sahip değildir; değişiklikler
+güvenli, geri alınabilir ve yedekli yapılmalıdır.
 
 **Tasarım kuralı:** Sitenin görsel tasarımı beğenilmiştir ve **değiştirilmeyecektir.**
 Renkler, yazı tipleri, boşluklar, animasyonlar ve sayfa düzeni korunur.
@@ -65,8 +67,7 @@ Bu projede geçmişte veri kaybı riski yaşandı. Aşağıdakiler tartışmaya 
 ```
 didi-home/
 ├─ api/                         Vercel sunucu fonksiyonları (gizli anahtarlar yalnızca burada)
-│  ├─ keepalive.ts              Supabase'in uykuya dalmasını önler (3 günde bir, vercel.json → crons)
-│  └─ translate.ts              Otomatik İngilizce çeviri (OpenRouter, yalnızca yönetici)
+│  └─ keepalive.ts              Supabase'in uykuya dalmasını önler (3 günde bir, vercel.json → crons)
 ├─ backups/                     Canlı veri yedekleri (git'e gönderilmez)
 ├─ docs/
 │  └─ glossary.md               Çeviri sözlüğü (shared/ceviriSozlugu.ts'ten üretilir)
@@ -80,24 +81,17 @@ didi-home/
 │  ├─ migrate-images-to-storage.mjs  [tamamlandı] Base64 fotoğraflar → Storage
 │  ├─ generate-sitemap.mjs      Site haritası üretici (npm run build öncesi otomatik)
 │  └─ generate-glossary-doc.ts  docs/glossary.md üretici
-├─ shared/                      Tarayıcı ve sunucunun ortak kullandığı kod
-│  ├─ yoneticiler.ts            Yönetici e-posta listesi (TEK KAYNAK)
-│  └─ ceviriSozlugu.ts          Marka terimleri ve çeviri üslubu (TEK KAYNAK)
+├─ shared/
+│  └─ ceviriSozlugu.ts          Marka terimleri ve çeviri üslubu (TEK KAYNAK; EN metin yazarken kullan)
 ├─ sql/                         Veritabanı değişiklikleri, numara sırasıyla
 ├─ src/
-│  ├─ components/
-│  │  ├─ AdminPanel.tsx         Yönetim paneli (ayrı dosya olarak tembel yüklenir)
-│  │  ├─ AdminLogin.tsx         Yönetici girişi / hesap oluşturma / şifre sıfırlama
-│  │  ├─ AdminOrders.tsx        Siparişler sekmesi
-│  │  └─ ...                    Mağaza bileşenleri (tasarım korunuyor)
+│  ├─ components/               Mağaza bileşenleri (tasarım korunuyor; yönetim paneli 2026-11-25'te kaldırıldı)
 │  ├─ context/LanguageContext   TR/EN arayüz metinleri; ürün EN metinleri veritabanından
 │  ├─ hooks/useModalBehavior    Pencerelerde ESC ve arka plan kaydırma kilidi
-│  ├─ auth.ts                   Supabase Auth işlemleri
-│  ├─ images.ts                 Görsel küçültme (1200×1600) ve Storage'a yükleme
 │  ├─ orders.ts                 Sipariş: WhatsApp mesajı + veritabanı kaydı
-│  ├─ store.ts                  Veri erişim katmanı (TÜM okuma/yazma buradan)
+│  ├─ ozellikler.ts             SIPARIS_AKTIF bayrağı (portfolyo modu)
+│  ├─ store.ts                  Veri okuma katmanı (site yalnızca OKUR)
 │  ├─ supabase.ts               Supabase istemcisi
-│  ├─ translate.ts              Çeviri istemcisi (api/translate'i çağırır)
 │  └─ types.ts                  Tip tanımları
 ├─ vercel.json                  Yönlendirmeler, zamanlanmış görev, önbellek başlıkları
 ├─ PROJECT.md                   ← bu dosya
@@ -110,7 +104,7 @@ didi-home/
 
 ```bash
 npm install
-npm run dev      # http://localhost:3000  (api/ fonksiyonları yerelde ÇALIŞMAZ; çeviri yalnızca yayında)
+npm run dev      # http://localhost:3000  (api/ fonksiyonları yerelde ÇALIŞMAZ)
 npm run build    # önce site haritasını üretir, sonra derler
 npm run lint     # TypeScript tip kontrolü
 
@@ -130,8 +124,7 @@ Yerelde `.env.local`, yayında Vercel → Settings → Environment Variables.
 | `VITE_SUPABASE_ANON_KEY` | Tarayıcı | Hayır (RLS kuralları korur) |
 | `VITE_WHATSAPP_NUMBER` | Tarayıcı, sipariş yönlendirmesi | Hayır |
 | `SUPABASE_DB_URL` | Yalnızca yerel betikler (`scripts/`) — **Vercel'e eklenmez** | **Evet** |
-| `OPENROUTER_API_KEY` | Yalnızca sunucu (`api/translate`) | **Evet** |
-| `OPENROUTER_MODEL` | Sunucu, çeviri modeli adı | Hayır |
+| ~~`OPENROUTER_API_KEY`~~ / ~~`OPENROUTER_MODEL`~~ | 2026-11-25'ten beri kullanılmıyor (`api/translate` kaldırıldı); Vercel'de varsa silinebilir | — |
 
 ---
 
@@ -158,10 +151,10 @@ Tablo **silinmedi**, arşiv olarak duruyor (bkz. Süreç günlüğü).
 
 **Fotoğraflar:** Supabase Storage → `gorseller` deposu.
 Klasörler: `urunler/YYYY-AA/`, `vitrin/YYYY-AA/`, `tasima-2026-09-16/` (eski base64'lerden taşınanlar).
-Veritabanında yalnızca herkese açık adresleri durur. Panel yüklemeden önce görseli en fazla
-1200 × 1600 piksele (3:4) küçültür.
+Veritabanında yalnızca herkese açık adresleri durur. Görseller yüklenmeden önce en fazla
+1200 × 1600 piksele (3:4) küçültülür.
 
-**Sürüm geçmişinden geri dönmek** (şimdilik panelde yok, SQL ile):
+**Sürüm geçmişinden geri dönmek** (SQL ile):
 ```sql
 -- Bir ürünün geçmiş halleri, en yenisi üstte
 select id, action, changed_at, data->>'title' as baslik, data->>'price' as fiyat
@@ -178,9 +171,9 @@ from revisions where table_name = 'products' and row_id = 'URUN_ID' order by cha
 
 Depo (`gorseller`): herkes görüntüler, yalnızca yönetici yükler, API'den silme yok.
 
-Yönetici listesi iki yerde tutulur ve **ikisi birlikte** güncellenmelidir:
-`shared/yoneticiler.ts` (arayüz + çeviri fonksiyonu) ve `sql/02_security.sql → is_admin()` (asıl koruma;
-değiştirdikten sonra `node scripts/run-sql.mjs sql/02_security.sql`).
+Yönetici e-postası yalnızca `sql/02_security.sql → is_admin()` içinde durur. Tarayıcıda yönetim
+paneli 2026-11-25'ten beri yok; yönetici yazma kuralları veritabanında duruyor ama kullanan bir
+arayüz yok. Bütün yazma işleri `SUPABASE_DB_URL` (doğrudan bağlantı, RLS'i aşar) ile yapılır.
 
 ### SQL dosyaları (sırayla)
 
@@ -211,12 +204,12 @@ değiştirdikten sonra `node scripts/run-sql.mjs sql/02_security.sql`).
 - [x] **Aşama 5 — Otomatik İngilizce çeviri** — altyapı hazır; OpenRouter anahtarı eklenince etkinleşir
 - [x] **Aşama 6 — Hız, SEO, Supabase uyku önleyici, kod temizliği**
 - [x] **Yayın** — 2026-11-16'da yapıldı; kullanıcının yapacakları için bkz. Bölüm 11
+- [x] **Yönetim paneli kaldırıldı** — 2026-11-25; site asistanla yerelden yönetiliyor (Bölüm 12)
 
 ### Gelecekte değerlendirilebilecekler
 
 - Paylaşılan ürün bağlantılarında ürüne özel önizleme görseli (WhatsApp/Instagram tarayıcıları
   JavaScript çalıştırmaz; Vercel Middleware ile sunucu tarafında meta etiketi gerekir).
-- Sürüm geçmişinden panelden tek tıkla geri dönme ekranı.
 - Ödeme altyapısı gerekirse satışın ikas / Shopier / Shopify'a taşınması; bu site vitrin olarak kalır.
 - Yeni sipariş gelince e-posta bildirimi (şu an WhatsApp mesajı bildirim görevi görüyor).
 
@@ -565,6 +558,30 @@ kargo notu, sepet çekmecesi, fiyatlar ve fiyata göre sıralama gizlendi. Kod s
 - 2026-11-25: Proje Antigravity'ye taşınıyor. Taşınma kontrol listesi, git durumu ve devir notları:
   **[ANTIGRAVITY-DEVIR.md](ANTIGRAVITY-DEVIR.md)**.
 
+### 2026-11-25 — Yönetim paneli kaldırıldı
+
+**Karar (site sahibi):** Yüklemeler ve düzenlemeler zaten yapay zekâ asistanıyla yapılıyor;
+tarayıcıdaki `/admin` paneline ihtiyaç kalmadı. Site bundan sonra doğrudan asistanla yönetilecek.
+
+**Silinenler** (git geçmişinde duruyor, gerekirse geri getirilebilir — paneli içeren son commit `1edafeb`):
+- `src/components/AdminPanel.tsx`, `AdminLogin.tsx`, `AdminOrders.tsx`
+- `src/auth.ts`, `src/images.ts` (tarayıcıda görsel küçültme/yükleme), `src/translate.ts`
+- `api/translate.ts` (yalnızca yönetici oturumuyla çalışan OpenRouter çevirisi), `shared/yoneticiler.ts`
+- `src/store.ts` içindeki tüm yazma fonksiyonları, çöp kutusu/sipariş listeleme ve yedek dışa aktarma
+- `App.tsx`: `/admin` rotası, Supabase oturum dinleyicisi, yazma işleyicileri, footer'daki
+  "Yönetici Paneli" bağlantısı; `LanguageContext` içindeki kullanılmayan `admin.*` metinleri
+- `public/robots.txt` içindeki `Disallow: /admin`, `.env.example` içindeki OpenRouter satırları
+
+**Davranış:** Eski `/admin` bağlantısıyla gelen ziyaretçi ana sayfayı görür (adres `/` olur).
+Ziyaretçi tarafında hiçbir görsel değişiklik yok.
+
+**Veritabanına dokunulmadı.** Tablolar, RLS kuralları, `is_admin()`, çöp kutusu (`deleted_at`),
+`revisions` ve Storage aynen duruyor. Silinmiş ürünler veritabanında bekliyor.
+
+**Doğrulama:** `npm run lint` 0 hata, `npm run build` başarılı (tek JS paketi 596 kB). Yerelde:
+ana sayfa 8/19/2 ürünle açıldı, `/admin` → `/`'e düştü (giriş formu yok), kategori sayfası ve
+ürün penceresi çalışıyor, konsolda hata yok.
+
 ---
 
 ## 9. Alınan kararlar
@@ -592,6 +609,7 @@ kargo notu, sepet çekmecesi, fiyatlar ve fiyata göre sıralama gizlendi. Kod s
 | 2026-09-16 | Yönetici listesi ve çeviri sözlüğü shared/ klasöründe tek kaynak | Tarayıcı ve sunucu aynı listeyi kullansın |
 | 2026-10-03 | Filigran silme amaçlı bulanıklaştırma yapılmayacak | Lekesi filigrandan daha kötü; işaretin kalıp kalmayacağı kullanıcının kararı |
 | 2026-11-16 | Site şimdilik portfolyo: sipariş ve fiyat gizli (`SIPARIS_AKTIF`) | Kullanıcı kararı; alışveriş sonra eklenecek. Altyapı silinmedi, tek değerle geri açılır |
+| 2026-11-25 | Tarayıcıdaki yönetim paneli kaldırıldı; site asistanla yerelden yönetilir | Site sahibinin kararı: yüklemeler zaten asistanla yapılıyor, panel kullanılmıyor |
 
 ---
 
@@ -627,26 +645,51 @@ Yayın 2026-11-16'da yapıldı (commit `d73f0e2`).
       tablo silinmedi (3 satır arşivde), API ile okunamıyor
 
 **Kullanıcının yapacakları**
-- [ ] Supabase → Authentication → URL Configuration: Site URL `https://didihome.store`,
-      Redirect URLs `https://didihome.store/**` ve `http://localhost:3000/**`
-- [ ] `didihome.store/admin` → "Hesap oluşturun" → e-postadaki onay bağlantısı
-- [ ] Panelde bir ürünü düzenleyip kaydederek yazma yetkisini doğrulama
-- [ ] OpenRouter anahtarı: Vercel → Settings → Environment Variables → `OPENROUTER_API_KEY`
-      (+ isteğe bağlı `OPENROUTER_MODEL`), ardından Vercel'de yeniden yayın (Redeploy)
-- [ ] Panelde "EN çevirisi eksik" düğmesiyle mevcut ürünleri çevirme
+- ~~Supabase Auth URL ayarları, yönetici hesabı, panelde yazma denemesi, OpenRouter anahtarı,
+  panelden EN çevirisi~~ → **2026-11-25'te panel kaldırıldığı için gereksiz.**
 - [ ] Sohbette paylaşılan veritabanı şifresini sıfırlama ve `.env.local`'ı güncelleme
+      (Supabase → Project Settings → Database → Reset database password; yeni Session pooler
+      adresi `.env.local` → `SUPABASE_DB_URL`)
 
-## 12. Günlük kullanım (yönetici için)
+## 12. Siteyi yönetmek (asistanla, 2026-11-25'ten itibaren)
 
-| İş | Nerede |
+Tarayıcıda panel yok. Site sahibi ne istediğini asistana söyler; asistan aşağıdaki yöntemle yapar.
+
+**Her değişiklikte sıra:**
+1. **Yedek:** etkilenecek satırları `backups/<is-adi>-oncesi-YYYY-AA-GG.json` dosyasına yaz.
+2. **Betik:** `scripts/` altına bir Node betiği; `.env.local` → `SUPABASE_DB_URL` ile `pg` bağlantısı.
+   Önce **deneme modu** (hiçbir şey yazmaz), sonra `--apply`.
+3. **Tek transaction:** `begin` → yalnızca ilgili satırları güncelle/ekle (Altın kural 2) →
+   sonucu `select` ile doğrula → `commit` (tutmazsa `rollback`).
+4. **Kalıcı silme yok:** ürün kaldırmak = `deleted_at = now()`; gizlemek = `status = 'taslak'`;
+   satıldı = `status = 'satildi'`; geri getirmek = `deleted_at = null`.
+5. Her güncellemede önceki hal `revisions` tablosuna tetikleyiciyle otomatik yazılır.
+6. Değişiklik veritabanında olduğu için **yayın gerekmez**; site yenilenince görünür.
+   Kod değiştiyse lint + build + commit + push (push = Vercel yayını).
+
+**Fotoğraf eklerken:**
+- Dikey **3:4**, en fazla **1200 × 1600**, JPEG kalite ~86. Hiçbir efekt/bulanıklaştırma yok;
+  sağ alt köşede filigran/leke olmadığını kontrol et.
+- Storage deposu `gorseller`; klasör `urunler/YYYY-AA/` ya da `vitrin/YYYY-AA/`.
+- API ile yükleme yetkisi yalnızca yöneticide; servis anahtarı kullanılmaz. Yöntem:
+  doğrudan DB bağlantısıyla yalnızca o ayın klasörüne EKLEME izni veren **geçici** bir
+  `storage.objects` kuralı aç → anon anahtarla yükle → kuralı **hemen kaldır** → her dosyayı
+  herkese açık adresinden indirip birebir doğrula. Hazır örnek: `scripts/yeni-gorseller-2026-11.mjs`.
+- Veritabanına yalnızca herkese açık adres yazılır:
+  `https://<proje>.supabase.co/storage/v1/object/public/gorseller/urunler/YYYY-AA/<ad>.jpg`.
+
+**Sık işler**
+
+| İş | Ne yapılır |
 |---|---|
-| Ürün ekle / düzenle | Panel → Ürün Yönetimi → Yeni Ürün Ekle / kalem simgesi |
-| Ürünü gizle ama silme | Ürün formu → Yayın durumu → **Taslak** |
-| Satılan ürünü işaretle | Ürün formu → Yayın durumu → **Satıldı** |
-| Silinen ürünü geri getir | Panel → **Çöp Kutusu** → Geri Getir |
-| Sıralamayı değiştir | Ürün listesinde sürükle-bırak ya da oklar |
-| Kategori / alt başlık ekle | Panel → Kategori Yönetimi |
-| Ana sayfa vitrin görseli | Panel → Kapak Fotoğrafları (ya da kategori düzenleme penceresi — aynı değer) |
-| Siparişleri takip et | Panel → **Siparişler** (WhatsApp'a gelen DH-... numarasıyla eşleşir) |
-| Tüm kataloğun yedeği | Panel üst çubuk → **Yedek İndir** |
-| Görsel ölçüsü | Dikey **3:4**, ideal 1200 × 1600 piksel |
+| Yeni ürün | Görsel yükle → `insert into products` (id, title, category_id, images[], image, story, status, sort_order) |
+| Ürün metni / fiyatı | `update products set ... where id = ...` |
+| Ürünü gizle / satıldı | `status = 'taslak'` / `'satildi'` |
+| Ürünü kaldır / geri getir | `deleted_at = now()` / `deleted_at = null` |
+| Sıralama | `sort_order` (küçük olan önce) |
+| Vitrin görseli | `update categories set image = ... where id = ...` (tek kaynak) |
+| Kategori / alt başlık | `categories` satırı; `subcategories text[]` |
+| İngilizce metin | `*_en` sütunları; terimler ve üslup için `shared/ceviriSozlugu.ts` |
+| Siparişler (sipariş açılırsa) | `select * from orders order by created_at desc` |
+| Tam yedek | Tüm tabloları `backups/` altına JSON olarak dök |
+| Sürüm geçmişi | `select * from revisions where row_id = '...' order by changed_at desc` |

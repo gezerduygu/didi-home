@@ -37,7 +37,6 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // Footer
     'footer.istanbul': 'Didi Home © 2026 · İSTANBUL',
-    'footer.admin': 'YÖNETİCİ GİRİŞİ',
     'footer.story': 'HİKAYEMİZ',
     'footer.ceramic': 'SERAMİK',
     'footer.clothes': 'KIYAFET',
@@ -112,13 +111,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'about.value3.title': 'YAŞAYAN KOLEKSİYON',
     'about.value3.desc': 'Her Gün Eklenen Orijinal Parçalar',
     'about.quote': '"Var olanı koruyarak sanatla yeniden ruh kazandırmak." · Didi Home',
-    'about.explore_space': 'KOLEKSİYONU KEŞFET',
-
-    // Admin panel toast or common actions
-    'admin.added_success': 'başarıyla atölyeye eklendi ve yayına alındı!',
-    'admin.updated_success': 'başarıyla güncellendi!',
-    'admin.deleted_success': 'Ürün başarıyla silindi.',
-    'admin.reset_success': 'Katalog başarıyla varsayılan fabrika ayarlarına sıfırlandı!'
+    'about.explore_space': 'KOLEKSİYONU KEŞFET'
   },
   en: {
     // Header
@@ -144,7 +137,6 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
 
     // Footer
     'footer.istanbul': 'Didi Home © 2026 · ISTANBUL',
-    'footer.admin': 'ADMIN ACCESS',
     'footer.story': 'OUR STORY',
     'footer.ceramic': 'CERAMIC',
     'footer.clothes': 'CLOTHES',
@@ -219,13 +211,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     'about.value3.title': 'LIVING COLLECTION',
     'about.value3.desc': 'Original Pieces Added Daily',
     'about.quote': '"Preserving what exists, breathing new soul through art." · Didi Home',
-    'about.explore_space': 'EXPLORE THE COLLECTION',
-
-    // Admin panel toast or common actions
-    'admin.added_success': 'successfully added to the atelier and published!',
-    'admin.updated_success': 'successfully updated!',
-    'admin.deleted_success': 'Product deleted successfully.',
-    'admin.reset_success': 'Catalog successfully reset to default settings!'
+    'about.explore_space': 'EXPLORE THE COLLECTION'
   }
 };
 
