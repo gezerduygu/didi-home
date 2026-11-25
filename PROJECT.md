@@ -4,7 +4,7 @@
 > çalışmaya buradan başlar. Kod değiştiren herkes, işi bitirdiğinde bu dosyadaki
 > **Süreç Günlüğü** ve **Aşama Planı** bölümlerini günceller.
 
-Son güncelleme: 2026-09-16
+Son güncelleme: 2026-11-25
 
 ---
 
@@ -555,6 +555,16 @@ değiştirilmesi; sipariş/alışveriş kısmının şimdilik görünmez olması
 kargo notu, sepet çekmecesi, fiyatlar ve fiyata göre sıralama gizlendi. Kod silinmedi; değer
 `true` yapılınca hepsi geri gelir. **Yeniden açmadan önce yeni ürünlere fiyat girilmeli.**
 
+### 2026-11-17 → 2026-11-25 — Küçük işler ve Antigravity'ye devir
+
+- 2026-11-17: "Wabi-Sabi Ham Kum Vazo" (`ser-1`) çöp kutusuna taşındı; `prod_img_15.jpg` ve paneldeki
+  hazır seçeneği kaldırıldı (yedek: `backups/ser-1-kaldirmadan-once-2026-11-17-08-31.json`).
+- 2026-11-18: Seramik kategorisi vitrin görseliyle ilgili veritabanı işlemi (yedek:
+  `backups/seramik-vitrin-oncesi-2026-11-18.json`).
+- 2026-11-24: Footer'a "Yönetici Paneli" bağlantısı (`9ce69ff`, devir anında push edilmemişti).
+- 2026-11-25: Proje Antigravity'ye taşınıyor. Taşınma kontrol listesi, git durumu ve devir notları:
+  **[ANTIGRAVITY-DEVIR.md](ANTIGRAVITY-DEVIR.md)**.
+
 ---
 
 ## 9. Alınan kararlar
@@ -587,6 +597,7 @@ kargo notu, sepet çekmecesi, fiyatlar ve fiyata göre sıralama gizlendi. Kod s
 
 ## 10. Yeni bir geliştirici / asistan için hızlı başlangıç
 
+0. Antigravity'de çalışıyorsan önce **[ANTIGRAVITY-DEVIR.md](ANTIGRAVITY-DEVIR.md)** dosyasını oku.
 1. Bu dosyanın tamamını oku; özellikle **Altın kurallar** (Bölüm 2).
 2. `npm install && npm run dev` ile projeyi ayağa kaldır.
 3. Veritabanı işi için `.env.local` içinde `SUPABASE_DB_URL` gerekir; bağlantıyı
